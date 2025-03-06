@@ -1,0 +1,2 @@
+python detect.py --weights ckpt/yolov5s_cube_768_1280_1000.pt --source rtsp://admin:@192.168.4.13 --imgsz 1280 --view-img
+python detect.py --weights ckpt/yolov5s_cube_1600_1000.pt --source labeling-data/02_0_20/images --imgsz 1600 --save-txt
