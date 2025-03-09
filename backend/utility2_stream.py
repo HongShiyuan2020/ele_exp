@@ -10,7 +10,6 @@ class APIGetException(Exception):
     def __init__(self, *args):
         super().__init__(*args)
 
-
 class ChatProcess:
     def __init__(self, config):
         self.config = config                    # 配置文件
@@ -88,7 +87,6 @@ class ChatProcess:
         elif input_t == "evaluation":
             return self.step_evaluation(result)
 
-
     def streamOtherOK(self):
         pahse, step = self.steps[self.currentStep]
         prompt = self.config[pahse][step]["promptTrue"]
@@ -98,6 +96,7 @@ class ChatProcess:
                 prompt += "并且，当前的滑动变阻器处于最大阻值状态，满足实验要求，在生成的评价中要简要提及。"
             else:
                 prompt += "并且，当前的滑动变阻器不处于最大阻值状态，不满足实验要求，在生成的评价中要简要提及。"
+            self.connecting = False
         res = self.getTans(prompt, "")
         self.currentStep += 1
         try:
@@ -116,6 +115,7 @@ class ChatProcess:
                 prompt += "并且，当前的滑动变阻器处于最大阻值状态，满足实验要求，在生成的评价要在另外一句中简要提及。"
             else:
                 prompt += "并且，当前的滑动变阻器不处于最大阻值状态，不满足实验要求，在生成的评价要在另外一句中简要提及。"
+            self.connecting = False
         res = self.getTans(prompt, "")
         self.currentStep += 1
         try:
@@ -136,7 +136,6 @@ class ChatProcess:
         except:
             raise APIGetException()
 
-
     def streamGetQuesOK(self):
         prompt = f'当前问题为：\n{self.question["question"]}\n其答案为: {self.question["key"]}\n该学生回答的答案正确，请以温和的语气给出评价，并对正确答案作出解析。注意语言要简短，且为不带任何格式的纯文本'
         res = self.getTans(prompt, "")
@@ -151,7 +150,7 @@ class ChatProcess:
             raise APIGetException()
 
     def streamGetQuesRetry(self):
-        prompt = f'当前问题为：\n{self.question["question"]}\n其答案为: {self.question["key"]}\n该学生回答的答案错误，错误选项为{self.question["w_ans"]}，请以温和的语气给出评价，对学生回答的答案作出解析并提醒他再试一次。注意语言要简短，且为不带任何格式的纯文本'
+        prompt = f'当前问题为：\n{self.question["question"]}\n其答案为: {self.question["key"]}\n该学生回答的答案错误，错误选项为{self.question["w_ans"]}，请以温和的语气给出评价，评价中只能讨论学生提交的错误选项的解析，不能涉及正确选项的任何信息，对学生回答的答案作出解析并提醒他再试一次。注意语言要简短，且为不带任何格式的纯文本'
         res = self.getTans(prompt, "")
         self.answer_times += 1
         try:

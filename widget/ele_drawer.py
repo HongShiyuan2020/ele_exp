@@ -8,7 +8,7 @@
 import sys
 import os
 import pathlib
-
+import json
 
 '''
 环境配置
@@ -458,6 +458,9 @@ class EleDrawer(QtWidgets.QWidget):
         self.view.render(painter)
         painter.end()
 
+        b, ans = self.circuit_design_det(json.loads(self.ele_state.dump()))
+        print(ans)
+        
         self.submited.emit(self.ele_state, pixmap)
 
     def on_line_btn_clicked(self):
@@ -578,7 +581,135 @@ class EleDrawer(QtWidgets.QWidget):
             if a0.key() == Qt.Key.Key_R:
                 self.cur_target_item.setRotation((self.cur_target_item.rotation()+90)%360)
 
+    def circuit_design_det(self, obj: dict) -> bool :
+        root_com = None
+        for com_key in obj["components"]:
+            com = obj["components"][com_key]
+            if com["name"] == "Battery":
+                root_com = com
+                break
 
+        if root_com == None:
+            return False, "没有电源"
+        
+        stack = []
+        v_lines = []
+        visited_com = set()
+        visited_line = set()
+        start_pos = "Pos"
+        next_pos = "Pos"
+        pre_pos  = "Pos"
+        r_pb = set()
+        r_nb = set()
+        loopback = False
+
+        visited_com.add(root_com["name"])
+        stack.append(root_com)
+        
+        while (len(stack) > 0):
+            com = stack.pop()
+
+            for line_key in obj["lines"]:
+                line = obj["lines"][line_key]
+                if line["from_device"] == -1 or line["to_device"] == -1:
+                    return False, "导线未连接到仪器"
+                if line["id"] in visited_line:
+                    continue
+                if obj["components"][str(line["from_device"])]["name"] == "Voltmeter":
+                    visited_line.add(line["id"])
+                    continue
+                if obj["components"][str(line["to_device"])]["name"] == "Voltmeter":
+                    visited_line.add(line["id"])
+                    continue
+                
+                if (
+                    line["from_device"] == com["id"] or 
+                    line["to_device"] == com["id"]
+                ):
+                    to_bp = None
+                    to_device = None
+                    from_bp = None
+                    
+                    if line["from_device"] == com["id"]:
+                        to_bp = line["to_bp"]
+                        from_bp = line["from_bp"]
+                        to_device = line["to_device"]
+                    else:
+                        from_bp = line["to_bp"]
+                        to_bp = line["from_bp"]
+                        to_device = line["from_device"]
+
+                    pre_pos  = next_pos
+                    next_pos = to_bp
+                    next_com = obj["components"][str(to_device)]
+                    
+                    if com["name"] == "Battery":
+                        start_pos = obj["bps"][str(from_bp)]["name"]
+                    elif com["name"] == "Sliding Rheostats":
+                        next_bp_name = obj["bps"][str(from_bp)]["name"]
+                        prev_bp_name = obj["bps"][str(pre_pos)]["name"]
+                        if next_bp_name[:4] == prev_bp_name[:4]:
+                            return False, "滑动变阻器接错"
+                    elif com["name"] == "Resistance":
+                        if start_pos == "Pos":
+                            r_nb.add(from_bp)
+                            r_nb.add(to_bp)
+                        else:
+                            r_pb.add(from_bp)
+                            r_pb.add(to_bp)
+                    
+                    if next_com["name"] == "Ammeter" or next_com["name"] == "Voltmeter":
+                        cur_bp = obj["bps"][str(to_bp)]["name"]
+                        if start_pos == "Pos":
+                            if cur_bp == "Neg":
+                                return False,  f'{next_com["name"]}正负极接错'
+                        else:
+                            if start_pos.startswith("VA"):
+                                return False,  f'{next_com["name"]}正负极接错'
+                    elif next_com["name"] == "Resistance":
+                        if start_pos == "Pos":
+                            r_pb.add(from_bp)
+                            r_pb.add(to_bp)
+                        else:
+                            r_nb.add(from_bp)
+                            r_nb.add(to_bp)
+                    
+                    if next_com["name"] in visited_com:
+                        if next_com["id"] == root_com["id"]:
+                            loopback = True
+                            break
+                        else:
+                            return False, "重复连接"
+                    
+                    stack.append(next_com)
+                    visited_com.add(next_com["name"])                
+                    visited_line.add(line["id"])
+                    break
+            
+        if len(visited_com) != 5 or not loopback or len(obj["components"]) != 6:
+            return False, "串联环路连接错误"
+
+        for line_k in obj["lines"]:
+            line = obj["lines"][line_k]
+            if obj["components"][str(line["from_device"])]["name"] == "Voltmeter":
+                v_lines.append([line["to_bp"], obj["bps"][str(line["from_bp"])]["name"]])
+                continue
+            if obj["components"][str(line["to_device"])]["name"] == "Voltmeter":
+                v_lines.append([line["from_bp"], obj["bps"][str(line["to_bp"])]["name"]])
+                continue
+
+        if len(v_lines) != 2:
+            return False, "电压表连线数量错误"
+
+        for to_bp, v_pos in v_lines:
+            if v_pos == "Neg":
+                if to_bp not in r_nb:
+                    return False, "电压表连接错误"
+            else:
+                if to_bp not in r_pb:
+                    return False, "电压表连接错误"
+
+        return True, "电路设计正确"
 
 
 '''

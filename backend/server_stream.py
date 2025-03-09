@@ -16,7 +16,7 @@ file_path = os.path.join(SERVER_DIR, '1_config.json')
 with open(file_path, 'r', encoding='utf-8') as file:
     config = json.load(file)
 process = ChatProcess(config)
-process.setCurrentStep(8)
+# process.setCurrentStep(8)
 
 '''
 '''

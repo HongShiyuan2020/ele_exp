@@ -245,10 +245,6 @@ def get_all_dets(img: np.ndarray):
     
     return res["CUBE"][1], res["COMS"][1]
 
-
-
-
-
 def rand_color():
     r = random.randint(0, 255)
     g = random.randint(0, 255)
@@ -617,7 +613,120 @@ def sr_det_ans_final(img):
     ss, tr, tl, uc = sr_det(new_coms, new_binds, new_slides, new_cubes)
     return sr_det_ans(ss, tr, tl, uc)
 
+def circuit_design_det(obj: dict) -> bool :
+    root_com = None
+    for com_key in obj["components"]:
+        com = obj["components"][com_key]
+        if com["name"] == "Battery":
+            root_com = com
 
+    if root_com == None:
+        return False
+    
+    stack = []
+    v_lines = []
+    visited_com = set()
+    visited_com.add(root_com["name"])
+    visited_line = set()
+    start_pos = "Pos"
+    next_pos = "Pos"
+    pre_pos  = "Pos"
+    r_pb = set()
+    r_nb = set()
+    stack.append(root_com)
+    
+    while len(stack) != 0:
+        com = stack.pop()
+        if com["id"] in visited_com:
+            if com["id"] == root_com["id"]:
+                break
+            else:
+                return False, "没有电源"
+
+        for line_key in obj["lines"]:
+            line = obj["lines"][line_key]
+            
+            if obj["components"][str(line["from_device"])]["name"] == "Voltmeter":
+                v_lines.append([line["to_bp"], obj["bps"][str(line["from_bp"])]["name"]])
+                visited_line.add(line["id"])
+                continue
+            if obj["components"][str(line["to_device"])]["name"] == "Voltmeter":
+                v_lines.append([line["from_bp"], obj["bps"][str(line["from_bp"])]["name"]])
+                visited_line.add(line["id"])
+                continue
+            
+            if line["id"] not in visited_line and (
+                line["from_device"] == com["id"] or 
+                line["to_device"] == com["id"]
+            ):
+                to_bp = None
+                to_device = None
+                from_bp = None
+                
+                if line["from_device"] == com["id"]:
+                    to_bp = line["to_bp"]
+                    from_bp = line["from_bp"]
+                    to_device = line["to_device"]
+                else:
+                    from_bp = line["to_bp"]
+                    to_bp = line["from_bp"]
+                    to_device = line["from_device"]
+
+                pre_pos  = next_pos
+                next_pos = to_bp
+                next_com = obj["components"][str(to_device)]
+                
+                if com["name"] == "Battery":
+                    start_pos = obj["bps"][str(from_bp)]["name"]
+                elif com["name"] == "Sliding Rheostats":
+                    next_bp_name = obj["bps"][str(next_pos)]["name"]
+                    prev_bp_name = obj["bps"][str(pre_pos)]["name"]
+                    if next_bp_name[:4] == prev_bp_name[:4]:
+                        return False, "滑动变阻器接错"
+                elif com["name"] == "Resistance":
+                    if start_pos == "Pos":
+                        r_pb.add(from_bp)
+                        r_pb.add(to_bp)
+                    else:
+                        r_nb.add(from_bp)
+                        r_nb.add(to_bp)
+                
+                if next_com["name"] == "Ammeter" or next_com["name"] == "Voltmeter":
+                    cur_bp = obj["bps"][str(to_bp)]["name"]
+                    if start_pos == "Pos":
+                        if cur_bp == "Neg":
+                            return False,  f'{next_com["name"]}正负极接错'
+                    else:
+                        if start_pos.startswith("VA"):
+                            return False,  f'{next_com["name"]}正负极接错'
+                elif com["name"] == "Resistance":
+                    if start_pos != "Pos":
+                        r_pb.add(from_bp)
+                        r_pb.add(to_bp)
+                    else:
+                        r_nb.add(from_bp)
+                        r_nb.add(to_bp)
+                            
+                stack.append(next_com)
+                visited_com.add(next_com["name"])                
+                visited_line.add(line["id"])
+        
+        if len(visited_com) != 5:
+            return False, "串联环路连接错误"
+        
+        if len(v_lines) != 2:
+            return False, "电压表连接错误"
+
+        for to_bp, v_pos in v_lines:
+            if v_pos == "Neg":
+                if to_bp not in r_nb:
+                    return False, "电压表连接错误"
+            else:
+                if to_bp not in r_pb:
+                    return False, "电压表连接错误"
+
+        return True, "电路设计正确"
+        
 if __name__ == "__main__":
     im = cv2.imread(r"labeling-data\02_0_20\images\01_20250121_11-00_00_23.jpg")
     cubes, coms = get_all_dets(im)

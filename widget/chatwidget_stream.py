@@ -41,7 +41,6 @@ CHAT_URL = "http://127.0.0.1:8000/chat"
 def get_u(I: np.ndarray, R: np.ndarray):
     return (I/R).sum()/(1/R**2).sum()
 
-
 def get_r(I: np.ndarray, U: np.ndarray):
     return (I*U).sum()/(I**2).sum()
 
@@ -71,7 +70,6 @@ class StreamLabel(QLabel):
         else:
             print("Stream End!")
         self.parent_w.parent_w.load_success()
-
         
 
 class MessageBlock(QFrame):
@@ -1017,7 +1015,7 @@ class ChatWidget(QWidget):
         chat_w.loadingMsg = chat_w.add_message( { "is_teacher": True, "load": True, "message": [{"type": "text", "data": "加载中..."}]})
         chat_w.send_post_req(CHAT_URL, 
                              json.dumps(req_body, ensure_ascii=False).encode("utf-8"))
-        # chat_w.parent_w.progress.setPhase("question")
+        
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

@@ -139,7 +139,7 @@ class TableDesignWidget(QWidget):
     def open_dialog(self, button):
         self.current_button = button  # 记录当前被点击的按钮
         # 创建并显示对话框
-        dialog = CustomDialog(self)
+        dialog = TablePickDlg(self)
         dialog.exec_()
 
     # 将 Markdown 表格转换为 HTML 表格
@@ -260,64 +260,63 @@ class TableDesignWidget(QWidget):
         
         return new_table_data
 
-
-class CustomDialog(QDialog):
+class TablePickDlg(QDialog):
     def __init__(self, parent):
         super().__init__(parent)
-        self.ui = Ui_Dialog()
-        self.ui.setupUi(self)
 
-        # 绑定“设置为数据输入框”按钮点击事件
-        self.ui.pushButton.clicked.connect(self.set_to_input)
-        self.ui.pushButton_2.clicked.connect(self.set_to_label)  # 绑定点击事件
+        self.v_btn = QtWidgets.QPushButton("设为电压标签")
+        self.v_btn.setFixedSize(200, 100)
+        self.v_btn.clicked.connect(lambda : self.set_w_label("电压"))
+        self.a_btn = QtWidgets.QPushButton("设为电流标签")
+        self.a_btn.setFixedSize(200, 100)
+        self.a_btn.clicked.connect(lambda : self.set_w_label("电流"))
+        self.o_btn = QtWidgets.QPushButton("设为电阻标签")
+        self.o_btn.setFixedSize(200, 100)
+        self.o_btn.clicked.connect(lambda : self.set_w_label("电阻"))
+        self.i_btn = QtWidgets.QPushButton("设为输入框")
+        self.i_btn.setFixedHeight(100)
+        self.i_btn.clicked.connect(lambda : self.set_w_input())
+        
+        self.lay = QtWidgets.QGridLayout()
+        self.lay.addWidget(self.v_btn, 0, 0)
+        self.lay.addWidget(self.a_btn, 0, 1)
+        self.lay.addWidget(self.o_btn, 0, 2)
+        self.lay.addWidget(self.i_btn, 1, 0, 1, 3)
+        self.setLayout(self.lay)        
 
-    def set_to_input(self):
+    def set_w_label(self, label_text):
+        main_window = self.parent()
+        button = main_window.current_button
+
+        if button:
+            layout = button.parent().layout()
+            label = QtWidgets.QLabel(button.parent())
+            label.setText(label_text)  # 如果未输入，显示“默认文本”
+            label.setAlignment(QtCore.Qt.AlignCenter)  # 文本居中对齐
+            label.setMinimumSize(button.size())
+            layout.replaceWidget(button, label)
+            button.deleteLater()  # 删除原按钮
+        self.accept()  # 关闭对话框
+    
+    def set_w_input(self):
         main_window = self.parent()  # 获取主窗口实例
         button = main_window.current_button  # 获取当前被点击的按钮
 
         if button:
-            # 获取按钮的父布局
             layout = button.parent().layout()
-
-            # 替换按钮为 QLineEdit
             line_edit = QLineEdit(button.parent())
             line_edit.setFixedSize(189, 60)
             line_edit.setText("")
             line_edit.setMinimumSize(button.size())
             line_edit.setAlignment(QtCore.Qt.AlignCenter)  # 设置文字居中
-
-            # 设置字体大小
             font = QFont()
             font.setPointSize(11)  # 设置字号为 11，可以根据需要调整
             line_edit.setFont(font)
-
             layout.replaceWidget(button, line_edit)
             button.deleteLater()  # 删除原按钮
-
-        self.accept()  # 关闭对话框
-
-    def set_to_label(self):
-        main_window = self.parent()  # 获取主窗口实例
-        button = main_window.current_button  # 获取当前被点击的按钮
-
-        if button:
-            # 获取输入框的文本
-            input_text = self.ui.textEdit.toPlainText()
-
-            # 获取按钮的父布局
-            layout = button.parent().layout()
-
-            # 替换按钮为 QLabel
-            label = QtWidgets.QLabel(button.parent())
-            label.setText(input_text if input_text else "")  # 如果未输入，显示“默认文本”
-            # label.setText(input_text)  # 如果未输入，显示“默认文本”
-            label.setAlignment(QtCore.Qt.AlignCenter)  # 文本居中对齐
-            label.setMinimumSize(button.size())
-
-            layout.replaceWidget(button, label)
-            button.deleteLater()  # 删除原按钮
-
-        self.accept()  # 关闭对话框
+        self.accept()  # 关闭对话框s
+    
+    
 
 tabel_test = "| 序号 | 电压 | 电流 | \n | :---: | :---: | :---: | \n | 1 | __ | __ | \n | 2 | __ | __ | \n | 3 | __ | __ | "
 style = """
