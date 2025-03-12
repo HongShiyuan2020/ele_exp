@@ -970,7 +970,7 @@ class ChatWidget(QWidget):
                 {"type": "img", "data": pixmap.toImage()}
             ]
         }
-
+        
         req_body = {
             "type": "CIRCUIT_SUBMIT",
             "answer": "OK",
@@ -1006,8 +1006,8 @@ class ChatWidget(QWidget):
                              json.dumps(req_body, ensure_ascii=False).encode("utf-8"))
 
     def actionStartExp(chat_w, videoplayer, idx):
-        # videoplayer.set_input("rtsp://admin:@192.168.4.13")
-        videoplayer.set_input(os.path.join(PRO_DIR, r"labeling-data\02_Record\01_20250121_11.mp4"))
+        videoplayer.set_input("rtsp://admin:@192.168.4.13")
+        # videoplayer.set_input(os.path.join(PRO_DIR, r"labeling-data\record\01_20250121_11.mp4"))
         req_body = {
             "type": "QUES_GET"
         }

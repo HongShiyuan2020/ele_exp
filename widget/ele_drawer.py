@@ -679,7 +679,7 @@ class EleDrawer(QtWidgets.QWidget):
                             loopback = True
                             break
                         else:
-                            return False, "重复连接"
+                            return False, "元器件重复连接"
                     
                     stack.append(next_com)
                     visited_com.add(next_com["name"])                

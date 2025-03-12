@@ -1,7 +1,7 @@
 from ultralytics import YOLO
 import cv2
 
-model = YOLO("ckpt/yolov8n_3000.pt")
+model = YOLO("ckpt/yolov8s_3000.pt")
 
 class VideoCapture:
     def __init__(self, source):
@@ -44,7 +44,7 @@ if __name__ == "__main__":
             res = model.predict(source=frame)
             res = res[0]
         ann_frame = res.plot(img=frame)
-            
+        ann_frame = cv2.resize(ann_frame, [1280, 720])    
         # if idx % 2 == 0:
             # cv2.imwrite(f"labeling-data/COMS/{idx:06d}.jpg", frame)
         cv2.imshow("WND", ann_frame)

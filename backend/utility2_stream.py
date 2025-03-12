@@ -4,7 +4,7 @@ import random
 import base64
 import numpy as np
 import os
-from utility3 import tidy_det, conn_det, sr_det_ans_final
+from utility3 import tidy_det, conn_det, sr_det_ans_final, circuit_design_det
 
 class APIGetException(Exception):
     def __init__(self, *args):
@@ -16,16 +16,32 @@ class ChatProcess:
         self.steps = self.getstep(config)       # 阶段和步骤
         self.currentStep = 0                    # 当前步骤，从0开始计数
         self.stepCount = len(self.steps)        # 步骤总数
-        self.history = "接下去将生成问题让学生回答\n"                       # 历史记录
-        self.answer_times = 0                   # 当前问题学生回答次数
-        self.question = None                    # 当前正在回答的问题
-        self.answers = []
-        self.issr = False
-        self.connecting = False
-        self.client = OpenAI(api_key='sk-4vj3NYKrgqfUfHSDVD4xkiuOuBpOlo6jGY0kWiq6ioUXswoC', 
-                base_url="https://api.hunyuan.cloud.tencent.com/v1")
+        self.history = {
+            "start": {
+                "desc": "接下去将生成问题让学生回答\n"               
+            },
+        }                                       # 历史记录
+        self.answer_times   = 0                   # 当前问题学生回答次数
+        self.question       = None                    # 当前正在回答的问题
+        self.issr           = False
+        self.connecting     = False
+        # self.client = OpenAI(api_key='sk-4vj3NYKrgqfUfHSDVD4xkiuOuBpOlo6jGY0kWiq6ioUXswoC', 
+        #         base_url="https://api.hunyuan.cloud.tencent.com/v1")
         # self.client = OpenAI(api_key='sk-OWwbeu95SJyl88LXVaN4WWq3SuPHrnrLGAhSdU0tZJMiYiDv',
         #         base_url="https://api.planetzero.live/v1/")
+        self.client = OpenAI(api_key  = "EMPTY", 
+                             base_url = "http://223.2.21.14:8102/v1")
+
+    def init_state(self):
+        self.currentStep = 0
+        self.history = {
+             "start": {
+                "desc": "接下去将生成问题让学生回答\n"               
+            }
+        }
+        self.answer_times = 0
+        self.connecting = False
+        self.question = None
 
     def getTans(self, prompt, history, useHis=False):
         if not useHis :
@@ -36,8 +52,10 @@ class ChatProcess:
             messages.append(message_prompt)
         try:
             response = self.client.chat.completions.create(
-                model="hunyuan-turbo",
+                # model="hunyuan-turbo",
                 # model="gpt-4-turbo",
+                model="/disk/y232202037/deepseek/Qwen2.5-14B-Instruct-1M",
+                # model="Qwen2.5-14B-Instruct-1M-wuzongjie-merged",
                 messages=messages,
                 temperature=0.7,
                 stream=True,
@@ -60,16 +78,15 @@ class ChatProcess:
     '''
     def next(self, result=None):
         if self.currentStep >= self.stepCount:
-            self.currentStep = 0
-            self.history = ""
-            self.answer_times = 0
+            self.init_state()
             return self.getEndInfo()
 
-        print(self.currentStep)
-        print(self.answer_times)
-        print(result)  
         phase, step = self.steps[self.currentStep]
         input_t = self.config[phase][step]["format"]["input"]
+        
+        if f"{phase}-{step}" not in self.history:
+            self.history[f"{phase}-{step}"] = dict()
+            self.history[f"{phase}-{step}"]["desc"] = f"现在是阶段{phase}步骤{step}\n"
 
         if input_t == "":
             return self.step_question(result)
@@ -162,7 +179,7 @@ class ChatProcess:
             raise APIGetException()
         
     def streamGetQuesEr(self):
-        prompt = f'当前问题为：\n{self.question["question"]}\n其答案为: {self.question["key"]}\n该学生已经两次回答错误，请以温和的语气给出评价，告诉他正确答案并给出解析，解析中不要给出正确答案，一定不要给出正确答案。注意语言要简短，且为不带任何格式的纯文本'
+        prompt = f'当前问题为：\n{self.question["question"]}\n其答案为: {self.question["key"]}\n该学生已经两次回答错误，请以温和的语气给出评价，告诉他正确答案并给出解析，一定要告诉他正确答案是{self.question["key"]}。注意语言要简短，且为不带任何格式的纯文本'
         res = self.getTans(prompt, "")
         self.currentStep += 1
         self.answer_times = 0
@@ -190,6 +207,8 @@ class ChatProcess:
         prompt += f"在我给出的例子中正确答案为：{ans}\n"
         prompt += f"这是我的教学目标，请你为我生成提问和答案选项，只要问题和选项注意只要输出这两项，不要任何提示文本，不要出现任何和功率相关的内容，遵循我给的样例，不要生成任何评价。在你生成的问题中，请确保{gen_key}选项为正确答案, 注意一定要保证{gen_key}选项为正确选项，再次强调一定要保证{gen_key}选项为正确选项"
 
+        print(prompt)
+        
         res = self.getTans(prompt, "")
         self.question = {
             "key": gen_key,
@@ -203,43 +222,57 @@ class ChatProcess:
                 yield cont
         except:
             raise APIGetException()
-        
+      
  
     def setCurrentStep(self, idx):
         if idx < 0 and idx >= self.stepCount:
             print("Idx Invaild!")
-        
-        self.currentStep = idx
-        self.question = None
+        self.init_state()
+        self.currentStep  = idx
+        self.question     = None
         self.answer_times = 0
           
     def startStepByIdx(self, idx):
         self.setCurrentStep(idx)
         return self.next()
 
+
+    def step_evaluation(self, result):
+        print(self.history)
+        with open(os.path.join("tmp_eval.json"), "w", encoding="utf-8") as fout:
+            fout.write(json.dumps(self.history))
+        raise APIGetException()
+
     '''
     :处理普通问答
     '''
     def step_question(self, result):
+        phase, step = self.steps[self.currentStep]
         if self.answer_times == 0:   
             if result != None:                              # 学生第一次回答问题
+                self.history[f"{phase}-{step}"]["desc"] += f'学生第一次回答问题给出答案:{result["answer"]}\n'
                 if self.judge_answer(result) == True:
+                    self.history[f"{phase}-{step}"]["ispass"] = True
                     comment = self.getOKComment()
                     return comment
                 else:
                     return self.getRetryComment(result)
             else:                                           # 学生没有回答这个问题且回答次数为0，说明还没给出问题，大模型生成问题，发送给学生
-                self.question = self.getQuestion()
-                return self.question
+                ques = self.getQuestion()
+                return ques
         else:
             if result != None:                              # 学生第二次回答问题
+                self.history[f"{phase}-{step}"]["desc"] += f'学生第二次回答问题给出答案:{result["answer"]}\n'
                 if self.judge_answer(result) == True:
+                    self.history[f"{phase}-{step}"]["ispass"] = True
                     comment = self.getOKComment()
                     return comment
                 else:
+                    self.history[f"{phase}-{step}"]["ispass"] = False
                     comment = self.getFailedComment()
                     return comment
             else:
+                self.history[f"{phase}-{step}"]["ispass"] = False
                 comment = self.getFailedComment()
                 return comment
 
@@ -250,12 +283,14 @@ class ChatProcess:
             return False
 
     def getOKComment(self):
+        phase, step = self.steps[self.currentStep]
         comment = {
             "type": "QUES_OK", 
         }
         return comment
 
     def getRetryComment(self, res):
+        phase, step = self.steps[self.currentStep]
         self.question["w_ans"] = res["answer"]
         comment = {
             "type": "QUES_RETRY",
@@ -264,6 +299,7 @@ class ChatProcess:
 
     def getQuestion(self):
         phase, step = self.steps[self.currentStep]
+        self.history[f"{phase}-{step}"]["type"] = "QUE"
         return {
             "type": "QUES_GET",
             "phase": phase,
@@ -276,31 +312,23 @@ class ChatProcess:
         }
         return comment
     
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
     '''
     : 处理表格回复
     '''
     def step_table(self, result):
+        phase, step = self.steps[self.currentStep]
         if result == None:              # 没有结果，说明还没给出提示，生成提示对话
             comment = self.getTableTip()
             return comment
         else:                           # 结果不为空，学生给出了table，给出评价
+            self.history[f"{phase}-{step}"]["title"] = f"设计{result['table_type']}表格"
             if self.judgeTable(result):
+                self.history[f"{phase}-{step}"]["desc"] = "学生成功设计表格\n"
+                self.history[f"{phase}-{step}"]["ispass"] = True
                 return self.getTableOK()   
             else:
+                self.history[f"{phase}-{step}"]["desc"] = "学生设计表格出现错误\n"
+                self.history[f"{phase}-{step}"]["ispass"] = False
                 return self.getTableErr()               
 
     def getTableTip(self):
@@ -369,14 +397,20 @@ class ChatProcess:
     '''
     : 处理电路图设计回复
     '''
-    def step_circuit(self, result):     
+    def step_circuit(self, result):   
+        phase, step = self.steps[self.currentStep]
+        self.history[f"{phase}-{step}"]["title"] = "电路图设计"  
         if result == None:              # 没有结果，说明还没给出提示，生成提示对话
             comment = self.getCircuitTip()
             return comment
         else:                           # 结果不为空，学生给出了电路图设计结果，大模型给出评价
             if self.judgeCircuit(result):
+                self.history[f"{phase}-{step}"]["desc"] = "学生成功设计电路\n"  
+                self.history[f"{phase}-{step}"]["ispass"] = True 
                 return self.getCircuitOK()   
             else:
+                self.history[f"{phase}-{step}"]["desc"] = "学生设计的电路有错误\n"  
+                self.history[f"{phase}-{step}"]["ispass"] = False
                 return self.getCircuitErr() 
     
     def getCircuitTip(self):
@@ -389,8 +423,9 @@ class ChatProcess:
 
     def judgeCircuit(self, res):
         try :
-            return False
-            return res["answer"] == "OK"
+            res, ans = circuit_design_det(json.loads(res["data"]))            
+            print(ans)
+            return res
         except:
             return False
 
@@ -406,18 +441,23 @@ class ChatProcess:
         }
         return comment
 
-
     '''
     : 处理实物连接回复
     '''
     def step_connection(self, result):
+        phase, step = self.steps[self.currentStep]
+        self.history[f"{phase}-{step}"]["title"] = "实物图连接"
         if result == None:              # 没有结果，说明还没给出提示，大模型生成提示对话
             comment = self.getConnectionTip()
             return comment
         else:                           # 结果不为空，学生给出了实物连接结果，大模型给出评价
             if self.judgeConnection(result):
+                self.history[f"{phase}-{step}"]["desc"] = "学生成功连接电路\n"
+                self.history[f"{phase}-{step}"]["ispass"] = True
                 return self.getOKConnection()   
             else:
+                self.history[f"{phase}-{step}"]["desc"] = "学生连接电路出错\n"
+                self.history[f"{phase}-{step}"]["ispass"] = False
                 return self.getErrConnection() 
     
     def getConnectionTip(self):
@@ -452,9 +492,6 @@ class ChatProcess:
         }
         return comment
 
-
-
-
     '''
     : 处理实验结束时的回复
     '''
@@ -464,18 +501,23 @@ class ChatProcess:
             "reply": "实验结束"
         }
     
-    
     '''
     处理表格记录过程 
     '''
     def step_record(self, result):
+        phase, step = self.steps[self.currentStep]
         if result == None:
             return self.getStartRecordAns()
         else:
+            self.history[f"{phase}-{step}"]["title"] = f"填写{result['table_type']}表格数据"
             if self.judegRecord(result):
+                self.history[f"{phase}-{step}"]["desc"] = f"学生{result['table_type']}表格数据填写正确\n"
+                self.history[f"{phase}-{step}"]["ispass"] = True
                 comment = self.getOKRecordAns(result)
                 return comment
             else:
+                self.history[f"{phase}-{step}"]["desc"] = f"学生{result['table_type']}表格数据填写错误\n"
+                self.history[f"{phase}-{step}"]["ispass"] = False
                 comment = self.getFailedRecordAns(result)
                 return comment
     
@@ -540,13 +582,19 @@ class ChatProcess:
     处理仪器整理
     '''
     def step_tidyup(self, result):
+        phase, step = self.steps[self.currentStep]
+        self.history[f"{phase}-{step}"]["title"] = "整理桌面"
         if result == None:
             return self.getStartTidyupAns()
         else:
             if self.judegTidyup(result):
+                self.history[f"{phase}-{step}"]["desc"] = "学生完成了桌面整理\n"
+                self.history[f"{phase}-{step}"]["ispass"] = True
                 comment = self.getOKTidyupAns(result)
                 return comment
             else:
+                self.history[f"{phase}-{step}"]["desc"] = "学生未完成桌面整理\n"
+                self.history[f"{phase}-{step}"]["ispass"] = False
                 comment = self.getFailedTidyupAns(result)
                 return comment
 
@@ -578,7 +626,6 @@ class ChatProcess:
             "type": "TIDYUP_ER",
         }
         return comment
-
 
 '''
 测试代码

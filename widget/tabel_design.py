@@ -273,16 +273,41 @@ class TablePickDlg(QDialog):
         self.o_btn = QtWidgets.QPushButton("设为电阻标签")
         self.o_btn.setFixedSize(200, 100)
         self.o_btn.clicked.connect(lambda : self.set_w_label("电阻"))
+        self.n_btn = QtWidgets.QPushButton("设为序号标签")
+        self.n_btn.setFixedSize(200, 100)
+        self.n_btn.clicked.connect(lambda : self.set_w_label("序号"))
         self.i_btn = QtWidgets.QPushButton("设为输入框")
         self.i_btn.setFixedHeight(100)
         self.i_btn.clicked.connect(lambda : self.set_w_input())
+        
+        self.idx_label = QtWidgets.QLabel("1")
+        self.idx_slide = QtWidgets.QSlider()
+        self.idx_slide.setMaximum(10)
+        self.idx_slide.setOrientation(QtCore.Qt.Orientation.Horizontal)
+        self.idx_slide.setMinimum(1)
+        self.idx_slide.valueChanged.connect(self.change_label)
+
+        self.idx_btn = QtWidgets.QPushButton("设置序号")        
+        self.idx_btn.setFixedHeight(100)
+        self.idx_btn.clicked.connect(lambda : self.set_w_slide_label())
         
         self.lay = QtWidgets.QGridLayout()
         self.lay.addWidget(self.v_btn, 0, 0)
         self.lay.addWidget(self.a_btn, 0, 1)
         self.lay.addWidget(self.o_btn, 0, 2)
-        self.lay.addWidget(self.i_btn, 1, 0, 1, 3)
+        self.lay.addWidget(self.n_btn, 0, 3)
+        self.lay.addWidget(self.i_btn, 1, 0, 1, 4)
+        self.lay.addWidget(self.idx_label, 2, 0, 1, 1, QtCore.Qt.AlignmentFlag.AlignHCenter)
+        self.lay.addWidget(self.idx_slide, 2, 1, 1, 3)
+        self.lay.addWidget(self.idx_btn, 3, 0, 1, 4)
         self.setLayout(self.lay)        
+
+    def change_label(self, val):
+        self.idx_label.setText(str(val))
+
+    def set_w_slide_label(self):
+        idx = str(self.idx_slide.value())
+        self.set_w_label(idx)
 
     def set_w_label(self, label_text):
         main_window = self.parent()
