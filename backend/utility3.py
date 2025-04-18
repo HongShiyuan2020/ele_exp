@@ -7,8 +7,9 @@ import random
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-executor = ThreadPoolExecutor(max_workers=2)
-
+'''
+添加环境路径
+'''
 FILE = Path(__file__).resolve()
 ROOT = Path(FILE.parents[0].parent, "model/yolov5") 
 if str(ROOT) not in sys.path:
@@ -18,8 +19,6 @@ if str(ROOT) not in sys.path:
 PRO_DIR = str(ROOT.parent.parent)
 ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  
 
-
-from ultralytics.utils.plotting import Annotator, colors
 from model.yolov5.models.common import DetectMultiBackend
 from model.yolov5.utils.general import (
     check_img_size,
@@ -33,27 +32,41 @@ from model.yolov5.utils.augmentations import (
 from model.yolov5.utils.torch_utils import select_device
 from ultralytics import YOLO
 
+'''
+初始化线程池
+'''
+executor = ThreadPoolExecutor(max_workers=3)
+
 
 '''
 初始化模型
 '''
-device = select_device("")
-com_model = DetectMultiBackend("ckpt/yolov5s_component_.pt", 
-                           device=device, 
-                           dnn=False, 
-                           data=ROOT / "data/coco128.yaml", 
-                           fp16=False)
-stride, names, pt = com_model.stride, com_model.names, com_model.pt
-imgsz = check_img_size((640, 384), s=stride)  
-bs = 1 
-com_model.warmup(imgsz=(1 if pt or com_model.triton else bs, 3, *imgsz))
-cube_model = YOLO(os.path.join(PRO_DIR, "ckpt/yolov8s_3000.pt"))
+device = select_device("cuda:0")
+com_models = []
+
+for i in range(2):
+    
+    com_model = DetectMultiBackend("ckpt/yolov5s_component_.pt", 
+                            device=device, 
+                            dnn=False, 
+                            data=ROOT / "data/coco128.yaml", 
+                            fp16=False)
+    stride, names, pt = com_model.stride, com_model.names, com_model.pt
+    imgsz = check_img_size((640, 384), s=stride)  
+    bs = 1 
+    com_model.warmup(imgsz=(1 if pt or com_model.triton else bs, 3, *imgsz))
+
+    com_models.append(com_model)
+
+
+cube_model = YOLO(os.path.join(PRO_DIR, "ckpt/yolov8s_cube_4200.pt"))
+
 
 '''
-V8与V5的检测调用接口
+V8的检测调用接口
 '''
 def det_v8_img(im: np.ndarray, model, det_type="CUBE"):
-    res = model.predict(im, imgsz=1600, iou=0.5, verbose=False)
+    res = model.predict(im, imgsz=1600, iou=0.5, verbose=False, device="cuda:0")
     res_ans = res[0]
     data = {
         "xyxy": res_ans.boxes.xyxyn.detach().cpu().numpy(),
@@ -62,15 +75,19 @@ def det_v8_img(im: np.ndarray, model, det_type="CUBE"):
     }
     return det_type, data
 
+
+'''
+V5的检测调用接口
+'''
 def det_one_img (
     im: np.ndarray,
-    model=com_model,
+    model=com_models[0],
     det_type="COMS",
     conf_thres=0.25,    # confidence threshold
-    iou_thres=0.5,     # NMS IOU threshold
+    iou_thres=0.5,      # NMS IOU threshold
     max_det=1000,       # maximum detections per image
     classes=None,       # filter by class: --class 0, or --class 0 2 3
-    agnostic_nms=True, # class-agnostic NMS
+    agnostic_nms=True,  # class-agnostic NMS
     augment=False,      # augmented inference
     visualize=False,    # visualize features
     line_thickness=3,   # bounding box thickness (pixels)
@@ -113,14 +130,23 @@ def det_one_img (
 
     return det_type, res
 
+# 常见元器件的ID
 com_idx_set = {
     4, 5, 2, 0, 6, 3, 1
 }
-OK_AREA = [0.5, 0.0, 1.0, 0.5]
+
+# 整理仪器的摆放区域
+OK_AREA = [0.5, 0.0, 1.0, 0.6]
+
+# 滑动变阻器的构成
 SR_WIDS = {13, 8, 3}
+
+# 接线柱ID
 BIND_IDX_SET = {
     7, 8
 }
+
+# 滑片ID
 SLIDE_ID = 9
 
 '''
@@ -138,7 +164,9 @@ def select_coms(res: list):
             })
     return coms
 
-
+'''
+计算与OK_AREA相交的区域占元器件大小的比例
+'''
 def a_rate(xyxy):
     tx, ty, bx, by = xyxy
     com_s = abs(bx-tx)*abs(ty-by)
@@ -147,6 +175,25 @@ def a_rate(xyxy):
     xmax = min(bx, OK_AREA[2])
     ymax = min(by, OK_AREA[3])
     over_s = (ymax-ymin)*(xmax-xmin)
+    if ymax-ymin < 0 or xmax-xmin < 0:
+        over_s = 0
+    rate_s = over_s/com_s
+    
+    return rate_s
+
+def bia_rate(com1, com2):
+    tx, ty, bx, by = com1
+    com_s = abs(bx-tx)*abs(ty-by)
+
+    tx2, ty2, bx2, by2 = com2
+
+    xmin = max(tx, tx2)
+    ymin = max(ty, ty2)
+    xmax = min(bx, bx2)
+    ymax = min(by, by2)
+
+    over_s = (ymax-ymin)*(xmax-xmin)
+    
     if ymax-ymin < 0 or xmax-xmin < 0:
         over_s = 0
     rate_s = over_s/com_s
@@ -180,19 +227,23 @@ def tidy_up_ok(coms, cubes=None):
 
 '''
 整理代码对外接口
+可直接使用
+: args: img
+: return: bool 
 '''
 def tidy_det(img):
-    im0, res = det_one_img(img, com_model)
-    res_cube = cube_model.predict(img, imgsz=1600, iou=0.4, verbose=False)
+    im0, res = det_one_img(img, com_models[1])
+    res_cube = cube_model.predict(img, imgsz=1600, iou=0.4, verbose=False, device="cuda:0")
     res_cube = res_cube[0].boxes.xyxyn.detach().cpu().tolist()
     isok, coms , _, cs, ncs  = tidy_up_ok(select_coms(res), res_cube)
-    
     return isok
 
+'''
+计算IOU矩阵
+'''
 def compute_iou_matrix(boxes1: np.ndarray, boxes2: np.ndarray) -> np.ndarray:
     """
     计算两个检测框集合之间的 IOU 矩阵。
-
     :param boxes1: (N, 4) 形状的 ndarray, 其中每行是 [left, top, right, bottom]
     :param boxes2: (M, 4) 形状的 ndarray, 其中每行是 [left, top, right, bottom]
     :return: (N, M) 形状的 IOU 矩阵
@@ -228,13 +279,15 @@ def compute_iou_matrix(boxes1: np.ndarray, boxes2: np.ndarray) -> np.ndarray:
 
 
 
- 
-def get_all_dets(img: np.ndarray):
+'''
+获取所有组件的检测框
+''' 
+def get_all_dets(img: np.ndarray, com_idx=0):
     '''
     获取所有cubes和coms的检测结果
     '''
     tasks = []
-    tasks.append(executor.submit(det_one_img, img.copy(), com_model))
+    tasks.append(executor.submit(det_one_img, img.copy(), com_models[com_idx]))
     tasks.append(executor.submit(det_v8_img, img.copy(), cube_model))
 
     res = dict()
@@ -245,21 +298,26 @@ def get_all_dets(img: np.ndarray):
     
     return res["CUBE"][1], res["COMS"][1]
 
+#####################################################
+'''
+绘制检测框
+'''
 def rand_color():
     r = random.randint(0, 255)
     g = random.randint(0, 255)
     b = random.randint(0, 255)
     return (r, g, b)
+
 cubes_c = []
 coms_c = []
 for i in range(30):
     cubes_c.append(rand_color())
     coms_c.append(rand_color())
+
 def plot_dets(img, cubes, coms):
     img = img.copy()
     H, W, C = img.shape
-    
-            
+
     for [tx, ty, bx, by], name, idx in zip(coms["xyxy"], coms["name"], coms["cls"]):
         img = cv2.rectangle(img, [int(tx*W), int(ty*H)], [int(bx*W), int(by*H)], coms_c[int(idx)], 6)
         img = cv2.putText(img, f"{name}-{idx}", [int(tx*W), int(ty*H)-20], cv2.FONT_HERSHEY_SIMPLEX, 2, coms_c[int(idx)], 6)
@@ -268,13 +326,18 @@ def plot_dets(img, cubes, coms):
         img = cv2.putText(img, f"{int(idx)}", [int(tx*W), int(ty*H)-20], cv2.FONT_HERSHEY_SIMPLEX, 2, cubes_c[int(idx)], 6)
 
     return img
+##################################################
 
 
-
+'''
+过滤cubes和coms
+'''
 def filter_dets(cubes, coms):
     '''
     过滤cubes和coms
     '''
+    
+    ###### 过滤接线柱、元器件和滑片
     new_coms = {
         "xyxy": [],
         "cls": [],
@@ -314,6 +377,7 @@ def filter_dets(cubes, coms):
             new_slides["cls"].append(int(cls))
             new_slides["conf"].append(conf)
             new_slides["name"].append(name)
+            
     new_coms["xyxy"] = np.array(new_coms["xyxy"], dtype=np.float64)
     new_coms["conf"] = np.array(new_coms ["conf"], dtype=np.float64)
     new_coms["cls"] = np.array(new_coms["cls"])
@@ -323,8 +387,9 @@ def filter_dets(cubes, coms):
     new_slides["xyxy"] = np.array(new_slides["xyxy"], dtype=np.float64)
     new_slides["conf"] = np.array(new_slides ["conf"], dtype=np.float64)
     new_slides["cls"] = np.array(new_slides["cls"])
-    
-    
+
+
+    ####### 过滤数字方块
     new_cubes = {
         "xyxy": [],
         "cls": [],
@@ -333,12 +398,13 @@ def filter_dets(cubes, coms):
     }
     
     # 过滤掉和com无交集的cude
-    # 过滤掉重叠度过高的cube
+    # 且过滤掉重叠度过高的cube
     cube_pos, com_pos = cubes["xyxy"], new_coms["xyxy"]
     com_pos[:, 0] -= 0.005
     com_pos[:, 1] -= 0.005
     com_pos[:, 2] += 0.005
     com_pos[:, 3] += 0.005
+    
     iou_comcube = compute_iou_matrix(cube_pos, com_pos)
     if len(iou_comcube) != 0:
         iou_comcube_maxarg = iou_comcube.argmax(axis=-1)
@@ -373,6 +439,9 @@ def filter_dets(cubes, coms):
     
     return new_coms, new_binds, new_slides, new_cubes
 
+'''
+计算连接情况
+'''
 def get_connes(new_coms, new_binds, new_slides, new_cubes, im):
     
     new_cubes["bind"] = []
@@ -387,9 +456,6 @@ def get_connes(new_coms, new_binds, new_slides, new_cubes, im):
 
     # 获取对应的连接元组
     connestions = dict()
-    iou_comcom = compute_iou_matrix(new_coms["xyxy"], new_coms["xyxy"])
-    if len(iou_comcom) != 0:
-        pass
     iou_bindcube = compute_iou_matrix(new_cubes["xyxy"], new_binds["xyxy"])
     if len(iou_bindcube) != 0:
         iou_bindcube_max = iou_bindcube.argmax(axis=-1)
@@ -426,11 +492,15 @@ def get_connes(new_coms, new_binds, new_slides, new_cubes, im):
         for ck in connestions:
             if len(connestions[ck]) == 4:
                 new_connections[ck] = connestions[ck]
+    else: 
+        new_connections = dict()
         
     return new_coms, new_binds, new_cubes, new_slides, new_connections         
 
 
-
+'''
+判断实物连接情况
+'''
 def get_conn_ans(coms, binds, connestions, cubes):
     '''
     获取最终结果
@@ -470,7 +540,6 @@ def get_conn_ans(coms, binds, connestions, cubes):
         del connestions[vline]
 
     while not end_flag:
-        print(cur_com)
         if cur_com == "B":
             if visited_b:
                 if sum(coms_types) != 1:
@@ -525,14 +594,32 @@ def get_conn_ans(coms, binds, connestions, cubes):
     
     return False
 
+
+'''
+实物电路连接判断接口
+# 可直接调用
+'''
 def conn_det(img: np.ndarray):
-    cubes, coms = get_all_dets(img)
+    cubes, coms = get_all_dets(img, 1)
     new_coms, new_binds, new_slides, new_cubes  = filter_dets(cubes, coms)
     new_coms, new_binds, new_cubes, new_slides, connestions = get_connes(new_coms, new_binds, new_slides, new_cubes, img)
-    res = get_conn_ans(new_coms, new_binds, connestions, new_cubes)        
-    return res
+    res = get_conn_ans(new_coms, new_binds, connestions, new_cubes)    
+    
+    switch_closed = True
+    for cls_id in new_coms["cls"]:
+        if cls_id == 2:
+            switch_closed = True
+            break
+        elif cls_id == 1:
+            switch_closed = False
+            break
+
+    return res, switch_closed
 
 
+'''
+获得sr的正极接线柱，和导线连接的负极接线柱的坐标
+'''
 def sr_det(new_coms, new_binds, new_slides, new_cubes):
     com_xyxy = []
     for idx, c in enumerate(new_coms["cls"]):
@@ -582,11 +669,13 @@ def sr_det(new_coms, new_binds, new_slides, new_cubes):
     if len(under_cube) == 0:
         return np.array([0.0, 0.0]), np.array([0.0, 0.0]), np.array([0.0, 0.0]), np.array([0.0, 0.0])
 
-
     under_cube = (under_cube[:2] + under_cube[2:])/2
     
     return slide_xy, tr_bind, tl_bind, under_cube
 
+'''
+判断sr是否在最大阻值
+'''
 def sr_det_ans(slide_xy, tr_bind, tl_bind, under_cube):
     if (slide_xy + tr_bind + tl_bind + under_cube).sum() < 0.01:
         return False
@@ -607,127 +696,20 @@ def sr_det_ans(slide_xy, tr_bind, tl_bind, under_cube):
     ans_rate = np.sqrt(((slide_xy - less_p)**2).sum()) / np.sqrt(((slide_xy - grea_p)**2).sum())
     return ans_rate > 1.6
 
+'''
+最大阻值对外接口
+# 可直接使用
+'''
 def sr_det_ans_final(img):
-    cubes, coms = get_all_dets(img)
+    cubes, coms = get_all_dets(img, 1)
     new_coms, new_binds, new_slides, new_cubes  = filter_dets(cubes, coms)
     ss, tr, tl, uc = sr_det(new_coms, new_binds, new_slides, new_cubes)
     return sr_det_ans(ss, tr, tl, uc)
 
-def circuit_design_det(obj: dict) -> bool :
-    root_com = None
-    for com_key in obj["components"]:
-        com = obj["components"][com_key]
-        if com["name"] == "Battery":
-            root_com = com
 
-    if root_com == None:
-        return False
-    
-    stack = []
-    v_lines = []
-    visited_com = set()
-    visited_com.add(root_com["name"])
-    visited_line = set()
-    start_pos = "Pos"
-    next_pos = "Pos"
-    pre_pos  = "Pos"
-    r_pb = set()
-    r_nb = set()
-    stack.append(root_com)
-    
-    while len(stack) != 0:
-        com = stack.pop()
-        if com["id"] in visited_com:
-            if com["id"] == root_com["id"]:
-                break
-            else:
-                return False, "没有电源"
-
-        for line_key in obj["lines"]:
-            line = obj["lines"][line_key]
-            
-            if obj["components"][str(line["from_device"])]["name"] == "Voltmeter":
-                v_lines.append([line["to_bp"], obj["bps"][str(line["from_bp"])]["name"]])
-                visited_line.add(line["id"])
-                continue
-            if obj["components"][str(line["to_device"])]["name"] == "Voltmeter":
-                v_lines.append([line["from_bp"], obj["bps"][str(line["from_bp"])]["name"]])
-                visited_line.add(line["id"])
-                continue
-            
-            if line["id"] not in visited_line and (
-                line["from_device"] == com["id"] or 
-                line["to_device"] == com["id"]
-            ):
-                to_bp = None
-                to_device = None
-                from_bp = None
-                
-                if line["from_device"] == com["id"]:
-                    to_bp = line["to_bp"]
-                    from_bp = line["from_bp"]
-                    to_device = line["to_device"]
-                else:
-                    from_bp = line["to_bp"]
-                    to_bp = line["from_bp"]
-                    to_device = line["from_device"]
-
-                pre_pos  = next_pos
-                next_pos = to_bp
-                next_com = obj["components"][str(to_device)]
-                
-                if com["name"] == "Battery":
-                    start_pos = obj["bps"][str(from_bp)]["name"]
-                elif com["name"] == "Sliding Rheostats":
-                    next_bp_name = obj["bps"][str(next_pos)]["name"]
-                    prev_bp_name = obj["bps"][str(pre_pos)]["name"]
-                    if next_bp_name[:4] == prev_bp_name[:4]:
-                        return False, "滑动变阻器接错"
-                elif com["name"] == "Resistance":
-                    if start_pos == "Pos":
-                        r_pb.add(from_bp)
-                        r_pb.add(to_bp)
-                    else:
-                        r_nb.add(from_bp)
-                        r_nb.add(to_bp)
-                
-                if next_com["name"] == "Ammeter" or next_com["name"] == "Voltmeter":
-                    cur_bp = obj["bps"][str(to_bp)]["name"]
-                    if start_pos == "Pos":
-                        if cur_bp == "Neg":
-                            return False,  f'{next_com["name"]}正负极接错'
-                    else:
-                        if start_pos.startswith("VA"):
-                            return False,  f'{next_com["name"]}正负极接错'
-                elif com["name"] == "Resistance":
-                    if start_pos != "Pos":
-                        r_pb.add(from_bp)
-                        r_pb.add(to_bp)
-                    else:
-                        r_nb.add(from_bp)
-                        r_nb.add(to_bp)
-                            
-                stack.append(next_com)
-                visited_com.add(next_com["name"])                
-                visited_line.add(line["id"])
-        
-        if len(visited_com) != 5:
-            return False, "串联环路连接错误"
-        
-        if len(v_lines) != 2:
-            return False, "电压表连接错误"
-
-        for to_bp, v_pos in v_lines:
-            if v_pos == "Neg":
-                if to_bp not in r_nb:
-                    return False, "电压表连接错误"
-            else:
-                if to_bp not in r_pb:
-                    return False, "电压表连接错误"
-
-        return True, "电路设计正确"
-
-
+'''
+电路设计正确性型判断
+'''
 def circuit_design_det(obj: dict) -> bool :
     root_com = None
     for com_key in obj["components"]:
@@ -739,16 +721,16 @@ def circuit_design_det(obj: dict) -> bool :
     if root_com == None:
         return False, "没有电源"
     
-    stack = []
-    v_lines = []
-    visited_com = set()
+    stack        = []
+    v_lines      = []
+    visited_com  = set()
     visited_line = set()
-    start_pos = "Pos"
-    next_pos = "Pos"
-    pre_pos  = "Pos"
-    r_pb = set()
-    r_nb = set()
-    loopback = False
+    start_pos    = "Pos"
+    next_pos     = "Pos"
+    pre_pos      = "Pos"
+    r_pb         = set()
+    r_nb         = set()
+    loopback     = False
 
     visited_com.add(root_com["name"])
     stack.append(root_com)
@@ -857,18 +839,44 @@ def circuit_design_det(obj: dict) -> bool :
                 return False, "电压表连接错误"
 
     return True, "电路设计正确"
+
+'''
+判断是否调零
+'''
+def det_zero_adjust(coms):
+    screw_idx = -1
+    ammtr_idx = -1
+    volum_idx = -1
+    
+    for idx,  cls_idx in enumerate(coms["cls"]):
+        if cls_idx == 12:
+            screw_idx = idx
+        elif cls_idx == 5:
+            ammtr_idx = idx
+        elif cls_idx == 6:
+            volum_idx = idx
+
+    if screw_idx == -1 or ammtr_idx == -1 or volum_idx == -1:
+        return False
+    
+    iou_sa = bia_rate(coms["xyxy"][screw_idx], coms["xyxy"][ammtr_idx])
+    iou_sv = bia_rate(coms["xyxy"][screw_idx], coms["xyxy"][volum_idx])
+    
+    
+    if iou_sa > 0.5 or iou_sv > 0.5:
+        return True
+    
+    return False
        
 if __name__ == "__main__":
-    im = cv2.imread(r"labeling-data\02_0_20\images\01_20250121_11-00_00_23.jpg")
+    im = cv2.imread(r"labeling-data\01_1_5\images\01_20250110_100325-00_01_06.jpg")
     cubes, coms = get_all_dets(im)
     new_coms, new_binds, new_slides, new_cubes  = filter_dets(cubes, coms)
     ss, tr, tl, uc = sr_det(new_coms, new_binds, new_slides, new_cubes)
+    det_zero_adjust(coms)
+    res, closed = conn_det(im)
     im0 = plot_dets(im, new_cubes, coms)
-    H, W, C = im0.shape
-    im0 = cv2.line(im0, [int(ss[0]*W), int(ss[1]*H)], [int(tr[0]*W), int(tr[1]*H)], (0, 225, 0), 3)
-    im0 = cv2.line(im0, [int(ss[0]*W), int(ss[1]*H)], [int(tl[0]*W), int(tl[1]*H)], (255, 0, 0), 3)
-    im0 = cv2.line(im0, [int(ss[0]*W), int(ss[1]*H)], [int(uc[0]*W), int(uc[1]*H)], (0, 0, 255), 3)
     im0 = cv2.resize(im0, [1280, 720])
-    print(np.sqrt(((uc - ss)**2).sum()))
+    
     cv2.imshow("TTT", im0)
     cv2.waitKey(0)

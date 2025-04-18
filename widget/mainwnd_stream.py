@@ -40,6 +40,14 @@ class CustomTitleBar(QWidget):
         self.close_button.setFixedSize(self.height__, self.height__)
         self.close_button.clicked.connect(self.parent.close)
         self.close_button.setContentsMargins(0, 0, 0, 0)
+        
+        
+        self.min_button = QPushButton("-", self)
+        self.min_button.setFixedSize(self.height__, self.height__)
+        self.min_button.clicked.connect(self.parent.minmize)
+        self.min_button.setContentsMargins(0, 0, 0, 0)
+        
+        layout.addWidget(self.min_button)
         layout.addWidget(self.close_button)
         layout.setSpacing(0)
 
@@ -135,6 +143,9 @@ class MainWnd(QWidget):
         if self.video_player and self.video_player.video_thread:
             self.video_player.stop_stream()
         return super().close()
+    
+    def minmize(self):
+        self.showMinimized()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

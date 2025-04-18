@@ -1,0 +1,10 @@
+// 流程图示例
+digraph {
+	A [label="开始"]
+	B [label="步骤1"]
+	C [label="步骤2"]
+	D [label="结束"]
+	A -> B
+	B -> C
+	C -> D
+}

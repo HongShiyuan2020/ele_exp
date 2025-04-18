@@ -1,9 +1,9 @@
 import sys
 from PyQt5 import QtNetwork
-from PyQt5.QtCore import QTimer, Qt, QSize, QUrl, QByteArray
-from PyQt5.QtGui import QImage, QPixmap, QMovie
-from PyQt5.QtWidgets import QTextBrowser, QDialog, QAbstractItemView, QRadioButton, QButtonGroup, QListWidgetItem, QApplication, QMainWindow, QLabel, QVBoxLayout, QWidget, QHBoxLayout, QPushButton, QSizePolicy, QFrame, QListWidget
-from tools.jsontopdf import json_to_pdf
+from PyQt5.QtCore import QIODevice, QBuffer, QTimer, Qt, QSize, QUrl, QByteArray, QEventLoop
+from PyQt5.QtGui import QImage, QPixmap, QMovie, QDesktopServices
+from PyQt5.QtWidgets import QMessageBox, QTextBrowser, QDialog, QAbstractItemView, QRadioButton, QButtonGroup, QListWidgetItem, QApplication, QMainWindow, QLabel, QVBoxLayout, QWidget, QHBoxLayout, QPushButton, QSizePolicy, QFrame, QListWidget
+
 
 import sys
 import os
@@ -36,7 +36,6 @@ from uir_drawer import UIRDrawer
 import numpy as np
 import matplotlib.pyplot as plt
 
-CHAT_URL = "http://127.0.0.1:8000/chat"
 
 def get_u(I: np.ndarray, R: np.ndarray):
     return (I/R).sum()/(1/R**2).sum()
@@ -142,8 +141,9 @@ class MessageBlock(QFrame):
                 self.lay.addWidget(label)
                 self.ws.append(label)
             elif msg["type"] == "btn":
-                btn = QPushButton()
+                btn = QPushButton(self)
                 btn.setText(msg["title"])
+                msg["args"]["btn_w"] = btn
                 btn.clicked.connect(lambda t, m=msg: m["action"](**m["args"]))
                 self.lay.addWidget(btn)
                 self.ws.append(btn)
@@ -267,9 +267,9 @@ class ChatWidget(QWidget):
         self.videoplayer = self.parent_w.video_player
         self.loadingMsg = None
         self.preResType = ""
-        self.fflag = True
         
         self.init_state()
+        self.register_client()
         self.init_attr()
         self.init_ui()
 
@@ -288,7 +288,7 @@ class ChatWidget(QWidget):
     def resQuesOK(self, res):
         cent = {
             "is_teacher": True, "load": True, "message": [
-                {"type": "stream", "url": "http://127.0.0.1:8000/stream/qok"},
+                {"type": "stream", "url": f"http://{self.client_config['server-ip']}:8000/stream/qok?video_ip={self.client_config['video-ip']}"},
                 {"type": "btn", "title": "下一步", "action": ChatWidget.actionNextStep, "args": {"chat_w": self, "next": ""}}
             ]
         }
@@ -298,7 +298,7 @@ class ChatWidget(QWidget):
     def resQuesRetry(self, res):
         cent = {
             "is_teacher": True, "load": True, "message": [
-                {"type": "stream", "url": "http://127.0.0.1:8000/stream/qretry"},
+                {"type": "stream", "url": f"http://{self.client_config['server-ip']}:8000/stream/qretry?video_ip={self.client_config['video-ip']}"},
                 {"type": "btn", "title": "A", "action": ChatWidget.actionAnswerQues, "args": {"chat_w": self, "answer": 'A'}},
                 {"type": "btn", "title": "B", "action": ChatWidget.actionAnswerQues, "args": {"chat_w": self, "answer": 'B'}},
                 {"type": "btn", "title": "C", "action": ChatWidget.actionAnswerQues, "args": {"chat_w": self, "answer": 'C'}},
@@ -313,7 +313,7 @@ class ChatWidget(QWidget):
         cent = {
             "is_teacher": True, "load": True, 
             "message": [
-                {"type": "stream", "url": "http://127.0.0.1:8000/stream/qget"},
+                {"type": "stream", "url": f"http://{self.client_config['server-ip']}:8000/stream/qget?video_ip={self.client_config['video-ip']}"},
                 {"type": "btn", "title": "A", "action": ChatWidget.actionAnswerQues, "args": {"chat_w": self, "answer": 'A'}},
                 {"type": "btn", "title": "B", "action": ChatWidget.actionAnswerQues, "args": {"chat_w": self, "answer": 'B'}},
                 {"type": "btn", "title": "C", "action": ChatWidget.actionAnswerQues, "args": {"chat_w": self, "answer": 'C'}},
@@ -328,7 +328,7 @@ class ChatWidget(QWidget):
     def resQuesFailed(self, res):
         cent = {
             "is_teacher": True, "load": True, "message": [
-                {"type": "stream", "url": "http://127.0.0.1:8000/stream/qerr"},
+                {"type": "stream", "url": f"http://{self.client_config['server-ip']}:8000/stream/qerr?video_ip={self.client_config['video-ip']}"},
                 {"type": "btn", "title": "下一步", "action": ChatWidget.actionNextStep, "args": {"chat_w": self, "next": "CIRCUIT_GET"}}
             ]
         }
@@ -340,7 +340,7 @@ class ChatWidget(QWidget):
         phase = res["phase"]
         cent = {
              "is_teacher": True, "load": True, "message": [
-                {"type": "stream", "url": "http://127.0.0.1:8000/stream/ciget"},
+                {"type": "stream", "url": f"http://{self.client_config['server-ip']}:8000/stream/ciget?video_ip={self.client_config['video-ip']}"},
                 {"type": "btn", "title": "设计表格", "action": ChatWidget.actionDesignTable, "args": {"chat_w": self, "table_type": tabel_type}},
             ]
         }
@@ -351,7 +351,7 @@ class ChatWidget(QWidget):
     def resTableOK(self, res):
         cent = {
             "is_teacher": True, "load": True, "message": [
-                {"type": "stream", "url": "http://127.0.0.1:8000/stream/ciok"},
+                {"type": "stream", "url": f"http://{self.client_config['server-ip']}:8000/stream/ciok?video_ip={self.client_config['video-ip']}"},
                 {"type": "btn", "title": "下一步", "action": ChatWidget.actionNextStep, "args": {"chat_w": self, "next": "CONN_GET"}},
             ]
         }
@@ -363,7 +363,7 @@ class ChatWidget(QWidget):
         html_t = self.table_ui_w.markdown_to_html(table["markdown"])
         cent = {
             "is_teacher": True, "load": True, "message": [
-                {"type": "stream", "url": "http://127.0.0.1:8000/stream/cierr"},
+                {"type": "stream", "url": f"http://{self.client_config['server-ip']}:8000/stream/cierr?video_ip={self.client_config['video-ip']}"},
                 {"type": "table", "data":  html_t},
                 {"type": "btn", "title": "下一步", "action": ChatWidget.actionNextStep, "args": {"chat_w": self, "next": "CONN_GET"}},
             ]
@@ -381,7 +381,7 @@ class ChatWidget(QWidget):
     def resCircuitGet(self, res):
         cent = {
              "is_teacher": True, "load": True, "message": [
-                {"type": "stream", "url": "http://127.0.0.1:8000/stream/ciget"},
+                {"type": "stream", "url": f"http://{self.client_config['server-ip']}:8000/stream/ciget?video_ip={self.client_config['video-ip']}"},
                 {"type": "btn", "title": "设计电路", "action": ChatWidget.actionDesignCircuit, "args": {"chat_w": self}},
             ]
         }
@@ -393,7 +393,7 @@ class ChatWidget(QWidget):
     def resCircuitOK(self, res):
         cent = {
             "is_teacher": True, "load": True, "message": [
-                {"type": "stream", "url": "http://127.0.0.1:8000/stream/ciok"},
+                {"type": "stream", "url": f"http://{self.client_config['server-ip']}:8000/stream/ciok?video_ip={self.client_config['video-ip']}"},
                 {"type": "btn", "title": "下一步", "action": ChatWidget.actionNextStep, "args": {"chat_w": self, "next": "TABLE_GET"}},
             ]
         }
@@ -405,7 +405,7 @@ class ChatWidget(QWidget):
         cent = {
             "is_teacher": True, "load": True, "message": [
                 {"type": "img", "data": self.circuit_img},
-                {"type": "stream", "url": "http://127.0.0.1:8000/stream/cierr"},
+                {"type": "stream", "url": f"http://{self.client_config['server-ip']}:8000/stream/cierr?video_ip={self.client_config['video-ip']}"},
                 {"type": "btn", "title": "下一步", "action": ChatWidget.actionNextStep, "args": {"chat_w": self, "next": "TABLE_GET"}},
             ]
         }
@@ -415,7 +415,7 @@ class ChatWidget(QWidget):
     def resConnGet(self, res):
         cent = {
              "is_teacher": True, "load": True, "message": [
-                {"type": "stream", "url": "http://127.0.0.1:8000/stream/ciget"},
+                {"type": "stream", "url": f"http://{self.client_config['server-ip']}:8000/stream/ciget?video_ip={self.client_config['video-ip']}"},
                 {"type": "btn", "title": "提交电路连接图片", "action": ChatWidget.actionConnSubmit, "args": {"chat_w": self}},
             ]
         }
@@ -428,7 +428,7 @@ class ChatWidget(QWidget):
     def resConnOK(self, res):
         cent = {
             "is_teacher": True, "load": True, "message": [
-                {"type": "stream", "url": "http://127.0.0.1:8000/stream/ciok"},
+                {"type": "stream", "url": f"http://{self.client_config['server-ip']}:8000/stream/ciok?video_ip={self.client_config['video-ip']}"},
                 {"type": "btn", "title": "下一步", "action": ChatWidget.actionNextStep, "args": {"chat_w": self, "next": "END"}},
             ]
         }
@@ -439,7 +439,7 @@ class ChatWidget(QWidget):
     def resConnEr(self, res):
         cent = {
             "is_teacher": True, "load": True, "message": [
-                {"type": "stream", "url": "http://127.0.0.1:8000/stream/cierr" },
+                {"type": "stream", "url": f"http://{self.client_config['server-ip']}:8000/stream/cierr?video_ip={self.client_config['video-ip']}" },
                 {"type": "btn", "title": "下一步", "action": ChatWidget.actionNextStep, "args": {"chat_w": self, "next": ""}},
             ]
         }
@@ -450,7 +450,7 @@ class ChatWidget(QWidget):
         table_type = res["table_type"]
         cent = {
             "is_teacher": True, "load": True, "message": [
-                {"type": "stream", "url": "http://127.0.0.1:8000/stream/ciget"},
+                {"type": "stream", "url": f"http://{self.client_config['server-ip']}:8000/stream/ciget?video_ip={self.client_config['video-ip']}"},
                 {"type": "btn", "title": "打开表格", "action": ChatWidget.actionOpenTable, "args": {"chat_w": self, "table": table_type}},
             ]
         }
@@ -463,9 +463,9 @@ class ChatWidget(QWidget):
         table = res["table_type"]
         cent = {
             "is_teacher": True, "load": True, "message": [
-                {"type": "stream", "url": "http://127.0.0.1:8000/stream/ciok"},
+                {"type": "stream", "url": f"http://{self.client_config['server-ip']}:8000/stream/ciok?video_ip={self.client_config['video-ip']}"},
                 {"type": "btn", "title": "绘制曲线图", "action": ChatWidget.actionDrawCurveHand, "args": {"chat_w": self, "table": table}},
-                {"type": "btn", "title": "下一步", "action": ChatWidget.actionNextStep, "args": {"chat_w": self, "next": "TIDYUP_GET"}},
+                # {"type": "btn", "title": "下一步", "action": ChatWidget.actionNextStep, "args": {"chat_w": self, "next": "TIDYUP_GET"}},
             ]
         }
         self.pop_item()
@@ -474,7 +474,7 @@ class ChatWidget(QWidget):
     def resRecordEr(self, res):
         cent = {
             "is_teacher": True, "load": True, "message": [
-                {"type": "stream", "url": "http://127.0.0.1:8000/stream/cierr"},
+                {"type": "stream", "url": f"http://{self.client_config['server-ip']}:8000/stream/cierr?video_ip={self.client_config['video-ip']}"},
                 {"type": "btn", "title": "下一步", "action": ChatWidget.actionNextStep, "args": {"chat_w": self, "next": "TIDYUP_GET"}},
             ]
         }
@@ -484,7 +484,7 @@ class ChatWidget(QWidget):
     def resTidyupGet(self, res):
         cent = {
             "is_teacher": True, "load": True, "message": [
-                {"type": "stream", "url": "http://127.0.0.1:8000/stream/ciget"},
+                {"type": "stream", "url": f"http://{self.client_config['server-ip']}:8000/stream/ciget?video_ip={self.client_config['video-ip']}"},
                 {"type": "btn", "title": "提交整理图片", "action": ChatWidget.actionSubmitTidyImg, "args": {"chat_w": self}},
             ]
         }
@@ -497,7 +497,7 @@ class ChatWidget(QWidget):
     def resTidyupOK(self, res):
         cent = {
             "is_teacher": True, "load": True, "message": [
-                {"type": "stream", "url": "http://127.0.0.1:8000/stream/ciok"},
+                {"type": "stream", "url": f"http://{self.client_config['server-ip']}:8000/stream/ciok?video_ip={self.client_config['video-ip']}"},
                 {"type": "btn", "title": "下一步", "action": ChatWidget.actionNextStep, "args": {"chat_w": self, "next": "END"}},
             ]
         }
@@ -507,8 +507,8 @@ class ChatWidget(QWidget):
     def resTidyupEr(self, res):
         cent = {
             "is_teacher": True, "load": True, "message": [
-                {"type": "stream", "url": "http://127.0.0.1:8000/stream/cierr"},
-                {"type": "btn", "title": "下一步", "action": ChatWidget.actionNextStep, "args": {"chat_w": self, "next": "END"}},
+                {"type": "stream", "url": f"http://{self.client_config['server-ip']}:8000/stream/cierr?video_ip={self.client_config['video-ip']}"},
+                {"type": "btn", "title": "下一步", "action": ChatWidget.actionNextStep, "args": {"chat_w": self, "next": ""}},
             ]
         }
         self.pop_item()
@@ -516,26 +516,17 @@ class ChatWidget(QWidget):
 
     def resGetSum(self, res):
         reply = res["reply"]
+        self.actionGetSumPage(reply)
+
+    def resTipSum(self, res):
+        reply = res["reply"]
         phase = res["phase"]
-        
-        try:
-            cent = {
-                "is_teacher": True, "load": False, "message": [
-                    {"type": "text", "data": "<h2>总结</h2>"},
-                    {"type": "text", "data": f'<p>{reply["生成评价"]["overall_evaluation"]["summary"]}</p>'},
-                    {"type": "text", "data": f'<p>得分：{reply["生成评价"]["overall_evaluation"]["score"]}/{reply["生成评价"]["overall_evaluation"]["max_score"]}</p>'},
-                ]
-            }
-            cent["message"].append({"type": "btn", "title": "获取详细文档", "action": ChatWidget.actionGetSumPdf, "args": {"chat_w": self, "json_text": reply}}),
-            cent["message"].append({"type": "btn", "title": "下一步", "action": ChatWidget.actionNextStep, "args": {"chat_w": self, "next": "END"}})
-        except:
-            cent = {
-                "is_teacher": True, "load": False, "message": [
-                    {"type": "text", "data": f'服务端结果生成错误！'},
-                ]
-            }
-            cent["message"].append({"type": "btn", "title": "下一步", "action": ChatWidget.actionNextStep, "args": {"chat_w": self, "next": "END"}})
-        
+        cent = {
+            "is_teacher": True, "load": False, "message": [
+                {"type": "text", "data": reply},
+                {"type": "btn", "title": "生成实验报告", "action": ChatWidget.actionTipSum, "args": {"chat_w": self}}
+            ]
+        }
         self.pop_item()
         self.add_message(cent)
         self.parent_w.progress.setPhase(phase)
@@ -551,10 +542,15 @@ class ChatWidget(QWidget):
         self.pop_item()
         self.add_message(cent)
 
+    def resUpload(self, res):
+        pass
+
     '''
     Init 操作
     '''
     def init_state(self):
+        with open(os.path.join(PRO_DIR, "widget/config/client_config.json")) as fin:
+            self.client_config = json.load(fin)
         self.circuit_img = QImage(os.path.join(PRO_DIR, "widget/res/circuit_true.png"))
         self.res_action_map = {
             "END": [self.resEnd],
@@ -578,7 +574,9 @@ class ChatWidget(QWidget):
             "TIDYUP_OK": [self.resTidyupOK],
             "TIDYUP_ER": [self.resTidyupEr],
             "SUM_GET": [self.resGetSum],
-            "API_ER": [self.resAPIEr]
+            "SUM_TIP": [self.resTipSum],
+            "API_ER": [self.resAPIEr],
+            "UPLOAD_OK": [self.resUpload]
         }
         self.message_cnt = 1
         self.state = {
@@ -602,6 +600,32 @@ class ChatWidget(QWidget):
         self.net_man = QtNetwork.QNetworkAccessManager(self)
         self.net_man.finished.connect(self.on_req_finished)
 
+    def register_client(self):
+        register_req = QtNetwork.QNetworkRequest(QUrl(f"http://{self.client_config['server-ip']}:8000/register?video_ip={self.client_config['video-ip']}"))
+        
+        try:
+            loop = QEventLoop()
+            register_net_man = QtNetwork.QNetworkAccessManager(self)
+            res = register_net_man.get(register_req)
+            res.finished.connect(loop.quit)
+            loop.exec_()
+        except:
+            msgbox = QMessageBox()
+            msgbox.setText("服务器未启动")
+            msgbox.exec_()
+
+        if res.error():
+            print("Error to register client")
+            msgbox = QMessageBox()
+            msgbox.setText("在服务器注册出错，请关闭程序并修改client_config.json文件")
+            msgbox.exec_()
+        else:
+            res_json = json.loads(res.readAll().data().decode("utf-8"))
+            if res_json["type"] != "REGISTER_OK":
+                msgbox = QMessageBox()
+                msgbox.setText("在服务器注册出错，请关闭程序并修改client_config.json文件")
+                msgbox.exec_()
+        
     def init_attr(self):
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.setStyleSheet("""
@@ -735,7 +759,22 @@ class ChatWidget(QWidget):
     '''
     按钮响应区
     '''
-    def actionDrawCurveHand(chat_w, table):
+    
+    def actionTipSum(chat_w, btn_w):
+        btn_w.setEnabled(False)
+        
+        req_body = {
+            "type": "",
+            "answer": "",
+            "video_ip": chat_w.client_config["video-ip"]
+        }
+        chat_w.loadingMsg = chat_w.add_message( { "is_teacher": True, "load": True, "message": [{"type": "text", "data": "加载中..."}]})
+        chat_w.send_post_req(f"http://{chat_w.client_config['server-ip']}:8000/chat", 
+                             json.dumps(req_body, ensure_ascii=False).encode("utf-8"))
+    
+    def actionDrawCurveHand(chat_w, table, btn_w):
+        btn_w.setEnabled(False)
+        
         s = chat_w.tabel_coonts[table].get_table_state()
         datas = dict()
         idx2col = []
@@ -774,12 +813,31 @@ class ChatWidget(QWidget):
         }
         
         self.add_message(cent)
-        self.add_message( { 
+        self.add_message({ 
                            "is_teacher": True, "load": False, "message": 
                                [
                                    {"type": "text", "data": "太棒了，你的曲线图绘制的完全正确！" if isok else "很可惜，图中有一些错误。"},
                                     {"type": "btn", "title": "下一步", "action": ChatWidget.actionNextStep, "args": {"chat_w": self, "next": "END"}},
                                 ]})
+        
+        buffer = QBuffer()
+        buffer.open(QIODevice.OpenModeFlag.ReadWrite)
+        pix.toImage().save(buffer, "JPG")
+        
+        b64 = base64.b64encode(buffer.data()).decode("utf-8")
+        buffer.close()
+        
+        req_body = {
+            "type": "UID",
+            "answer": "OK",
+            "data": b64,
+            "video_ip": self.client_config["video-ip"],
+            "pass": isok
+        }
+
+        self.send_post_req(f"http://{self.client_config['server-ip']}:8000/uploadimg", 
+                             json.dumps(req_body, ensure_ascii=False).encode("utf-8"))
+    
     
     
     def actionSubmitIRCurve(self, isok, pix):
@@ -797,18 +855,41 @@ class ChatWidget(QWidget):
                                    {"type": "text", "data": "太棒了，你的曲线图绘制的完全正确！" if isok else "很可惜，图中有一些错误。"},
                                     {"type": "btn", "title": "下一步", "action": ChatWidget.actionNextStep, "args": {"chat_w": self, "next": "END"}},
                                 ]})
+
+        buffer = QBuffer()
+        buffer.open(QIODevice.OpenModeFlag.ReadWrite)
+        pix.toImage().save(buffer, "JPG")
+        
+        b64 = base64.b64encode(buffer.data()).decode("utf-8")
+        buffer.close()
+        
+        req_body = {
+            "type": "IRD",
+            "answer": "OK",
+            "data": b64,
+            "video_ip": self.client_config["video-ip"],
+            "pass": isok
+        }
+
+        self.send_post_req(f"http://{self.client_config['server-ip']}:8000/uploadimg", 
+                             json.dumps(req_body, ensure_ascii=False).encode("utf-8"))
     
     ## HSY
-    def actionGetSumPdf(chat_w, json_text):
-        path = json_to_pdf(json_text, os.path.join(PRO_DIR, "sum.html"))
+    def actionGetSumPage(chat_w, json_text):
+        url_link  = f'http://{chat_w.client_config["server-ip"]}:8000{json_text["url"]}'
         cent = {
             "is_teacher": False, "load": False, "message": [
-                {"type": "text", "data": f'生成完毕，保存在 <a href="file:///{path}">{path}</a>'}
+                {"type": "text", "data": f'生成完毕，保存在 <a href="{url_link}">{url_link}</a>'},
+                {"type": "btn", "title": "打开报告", "action": lambda btn_w: QDesktopServices.openUrl(QUrl(url_link)), "args": {}},
+                {"type": "btn", "title": "下一步", "action": ChatWidget.actionNextStep, "args": {"chat_w": chat_w, "next": "END"}},
             ]
         }
+        chat_w.pop_item()
         chat_w.add_message(cent)
         
-    def actionDrawCurve(chat_w, table):
+    def actionDrawCurve(chat_w, table, btn_w):
+        btn_w.setEnabled(False)
+        
         s = chat_w.tabel_coonts[table].get_table_state()
         
         datas = dict()
@@ -865,11 +946,15 @@ class ChatWidget(QWidget):
         diag.setLayout(lay)
         diag.exec_()
     
-    def actionOpenTable(chat_w, table):
+    def actionOpenTable(chat_w, table, btn_w):
+        btn_w.setEnabled(False)
+        
         chat_w.tables[table].setFixedHeight(650)
         chat_w.tables[table].show()
     
-    def actionSubmitTidyImg(chat_w):
+    def actionSubmitTidyImg(chat_w, btn_w):
+        btn_w.setEnabled(False)
+        
         frame = chat_w.videoplayer.get_curframe()
         height, width, channel = frame.shape
         qimage = QImage(frame.data, width, height, channel * width, QImage.Format.Format_BGR888)
@@ -887,15 +972,18 @@ class ChatWidget(QWidget):
             "data": b64,
             "w": 1600,
             "h": 928,
-            "c": 3
+            "c": 3,
+            "video_ip": chat_w.client_config["video-ip"]
         }
 
         chat_w.add_message(cent)
         chat_w.loadingMsg = chat_w.add_message( { "is_teacher": True, "load": True, "message": [{"type": "text", "data": "加载中..."}]})
-        chat_w.send_post_req(CHAT_URL, 
+        chat_w.send_post_req(f"http://{chat_w.client_config['server-ip']}:8000/chat", 
                              json.dumps(req_body, ensure_ascii=False).encode("utf-8"))
     
-    def actionConnSubmit(chat_w):
+    def actionConnSubmit(chat_w, btn_w):
+        btn_w.setEnabled(False)
+        
         frame = chat_w.videoplayer.get_curframe()
         height, width, channel = frame.shape
         qimage = QImage(frame.data, width, height, channel * width, QImage.Format.Format_BGR888)
@@ -914,12 +1002,13 @@ class ChatWidget(QWidget):
             "data": b64,
             "h": 928,
             "w": 1600,
-            "c": 3
+            "c": 3,
+            "video_ip": chat_w.client_config["video-ip"]
         }
 
         chat_w.add_message(cent)
         chat_w.loadingMsg = chat_w.add_message( { "is_teacher": True, "load": True, "message": [{"type": "text", "data": "加载中..."}]})
-        chat_w.send_post_req(CHAT_URL, 
+        chat_w.send_post_req(f"http://{chat_w.client_config['server-ip']}:8000/chat", 
                              json.dumps(req_body, ensure_ascii=False).encode("utf-8"))
 
     def actionUITableSub(self, table_state, md):
@@ -927,7 +1016,8 @@ class ChatWidget(QWidget):
             "type": "TABLE_SUBMIT",
             "answer": "OK",
             "table_type": "UI",
-            "data": table_state
+            "data": table_state,
+            "video_ip": self.client_config["video-ip"]
         }        
 
         self.add_message({
@@ -935,9 +1025,10 @@ class ChatWidget(QWidget):
                 {"type": "text", "data": "这是我设计的表格。"},
                 {"type": "table", "data": md}]
         })
+        
         self.loadingMsg = self.add_message( { "is_teacher": True, "load": True, "message": [{"type": "text", "data": "加载中..."}]})
         self.table_ui_diag.close()
-        self.send_post_req(CHAT_URL, 
+        self.send_post_req(f"http://{self.client_config['server-ip']}:8000/chat", 
                              json.dumps(req_body, ensure_ascii=False).encode("utf-8"))
 
     def actionIRTableSub(self, table_state, md):
@@ -945,7 +1036,8 @@ class ChatWidget(QWidget):
             "type": "TABLE_SUBMIT",
             "answer": "OK",
             "data": table_state,
-            "table_type": "IR"
+            "table_type": "IR",
+            "video_ip": self.client_config["video-ip"]
         }    
 
         self.add_message({
@@ -956,10 +1048,12 @@ class ChatWidget(QWidget):
             
         self.loadingMsg = self.add_message( { "is_teacher": True, "load": True, "message": [{"type": "text", "data": "加载中..."}]})
         self.table_ir_diag.close()
-        self.send_post_req(CHAT_URL, 
+        self.send_post_req(f"http://{self.client_config['server-ip']}:8000/chat", 
                              json.dumps(req_body, ensure_ascii=False).encode("utf-8"))
 
-    def actionDesignTable(chat_w, table_type):
+    def actionDesignTable(chat_w, table_type, btn_w):
+        btn_w.setEnabled(False)
+        
         chat_w.tables[table_type].setFixedHeight(650)
         chat_w.tables[table_type].show()
 
@@ -971,49 +1065,69 @@ class ChatWidget(QWidget):
             ]
         }
         
+        buffer = QBuffer()
+        buffer.open(QIODevice.OpenModeFlag.ReadWrite)
+        pixmap.toImage().save(buffer, "JPG")
+        b64 = base64.b64encode(buffer.data()).decode("utf-8")
+        buffer.close()
+        
         req_body = {
             "type": "CIRCUIT_SUBMIT",
             "answer": "OK",
-            "data": ele_state.dump()
+            "data": ele_state.dump(),
+            "b64": b64,
+            "video_ip": self.client_config["video-ip"]
         }
 
         self.add_message(cent)
         self.loadingMsg = self.add_message( { "is_teacher": True, "load": True, "message": [{"type": "text", "data": "加载中..."}]})
-        self.send_post_req(CHAT_URL, 
+        self.send_post_req(f"http://{self.client_config['server-ip']}:8000/chat", 
                              json.dumps(req_body, ensure_ascii=False).encode("utf-8"))
         self.cir_des_diag.close()
 
-    def actionDesignCircuit(chat_w):
+    def actionDesignCircuit(chat_w, btn_w):
+        btn_w.setEnabled(False)
+        
         chat_w.cir_des_diag.setFixedHeight(650)
         chat_w.cir_des_diag.show()
 
-    def actionNextStep(chat_w, next):
+    def actionNextStep(chat_w, next, btn_w):
+        btn_w.setEnabled(False)
         req_body = {
-            "type": next
+            "type": next,
+            "video_ip": chat_w.client_config["video-ip"]
         }
         chat_w.loadingMsg = chat_w.add_message( { "is_teacher": True, "load": True, "message": [{"type": "text", "data": "加载中..."}]})
-        chat_w.send_post_req(CHAT_URL, 
+        chat_w.send_post_req(f"http://{chat_w.client_config['server-ip']}:8000/chat", 
                              json.dumps(req_body, ensure_ascii=False).encode("utf-8"))
 
-    def actionAnswerQues(chat_w, answer):
+    def actionAnswerQues(chat_w, answer, btn_w):
+        btn_ws = btn_w.parent().findChildren(QPushButton)
+        for bt in btn_ws:
+            bt.setEnabled(False)
         req_body = {
             "type": "QUES_ANS",
-            "answer": answer
+            "answer": answer,
+            "video_ip": chat_w.client_config["video-ip"]
         }
         chat_w.add_message( { "is_teacher": False, "load": False, "message": [{"type": "text", "data": f"我选择 {answer}"}]})
         chat_w.loadingMsg = chat_w.add_message( { "is_teacher": True, "load": True, "message": [{"type": "text", "data": "加载中..."}]})
-        chat_w.send_post_req(CHAT_URL, 
+        chat_w.send_post_req(f"http://{chat_w.client_config['server-ip']}:8000/chat", 
                              json.dumps(req_body, ensure_ascii=False).encode("utf-8"))
 
-    def actionStartExp(chat_w, videoplayer, idx):
-        videoplayer.set_input("rtsp://admin:@192.168.4.13")
-        # videoplayer.set_input(os.path.join(PRO_DIR, r"labeling-data\record\01_20250121_11.mp4"))
+    def actionStartExp(chat_w, videoplayer, idx, btn_w):
+        btn_w.setEnabled(False)
+        videoplayer.set_input(f"rtsp://admin:@{chat_w.client_config['video-ip']}")
+        # videoplayer.set_input(os.path.join(PRO_DIR, r"labeling-data\record\01_20250110_100325.mp4"))
         req_body = {
-            "type": "QUES_GET"
+            "type": "QUES_GET",
+            "video_ip": chat_w.client_config["video-ip"]
         }
         chat_w.add_message( { "is_teacher": False, "load": False, "message": [{"type": "text", "data": "开始吧"}]})
         chat_w.loadingMsg = chat_w.add_message( { "is_teacher": True, "load": True, "message": [{"type": "text", "data": "加载中..."}]})
-        chat_w.send_post_req(CHAT_URL, 
+        print(f"rtsp://admin:@{chat_w.client_config['video-ip']}")
+        print(f"http://{chat_w.client_config['server-ip']}:8000/chat")
+        chat_w.send_post_req(f"http://{chat_w.client_config['server-ip']}:8000/chat", 
                              json.dumps(req_body, ensure_ascii=False).encode("utf-8"))
         
 

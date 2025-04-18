@@ -43,10 +43,8 @@ if __name__ == "__main__":
         if idx % 4 == 0:
             res = model.predict(source=frame)
             res = res[0]
-        ann_frame = res.plot(img=frame)
+        ann_frame = res.plot(img=frame, line_width=2)
         ann_frame = cv2.resize(ann_frame, [1280, 720])    
-        # if idx % 2 == 0:
-            # cv2.imwrite(f"labeling-data/COMS/{idx:06d}.jpg", frame)
         cv2.imshow("WND", ann_frame)
         if cv2.waitKey(1) == ord("q"):
             cap.stop()

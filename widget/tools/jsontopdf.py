@@ -10,7 +10,7 @@ def json_to_pdf(json_data, pdf_file):
         student_answer = json_data.get("学生回答情况", "暂无数据")
         overall_eval = json_data["生成评价"]["overall_evaluation"]
         phase_eval = json_data["生成评价"].get("phase_evaluation", {})
-        suggestions = json_data["生成评价"].get("improvement_suggestions", [])
+        suggestions = json_data["生成评价"].get("improvement_suggestions", "")
 
         # 处理换行：\n 替换为 <br>，并按段落包裹
         formatted_answer = "<br>".join(student_answer.split("\n"))
@@ -55,19 +55,11 @@ def json_to_pdf(json_data, pdf_file):
         # 添加阶段评价
         for phase, details in phase_eval.items():
             html_content += f"<div class='section'><h4>{phase} 阶段</h4>"
-            performance = details.get("表现分析", {})
-            evaluation = details.get("评价", "")
-
-            for step, description in performance.items():
-                html_content += f"<p><b>{step}:</b> {description}</p>"
-
-            html_content += f"<p><b>评价:</b> {evaluation}</p></div>"
-
+            html_content += f"<p><b>评价:</b> {details}</p></div>"
+        
         # 添加提升建议
         html_content += "<h2>提升建议</h2>"
-        for suggestion in suggestions:
-            html_content += f"<div class='suggestion'><p><b>{suggestion.get('title', '暂无标题')}:</b> {suggestion.get('details', '暂无详情')}</p></div>"
-
+        html_content += f"<div class='suggestion'>{suggestions}</div>"
         html_content += "</body></html>"
 
         print("OK")

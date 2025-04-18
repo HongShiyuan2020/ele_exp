@@ -111,6 +111,7 @@ class TableDesignWidget(QWidget):
                 
     def onSubmit(self):
         s, md = self.get_markdown_and_state()
+        print(s)
         self.submited.emit(s, md)
 
     def hide_custom_buttons(self):

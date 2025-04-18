@@ -10,12 +10,21 @@ from PyQt5.QtWidgets import QApplication, QLabel, QVBoxLayout, QWidget
 import requests 
 import base64
 import time
+import zlib
 
 import numpy as np
 import random
 import os
+import json
 
-FRAME_URL = "http://127.0.0.1:8000/frame"
+PRO_DIR = os.path.dirname(os.path.dirname(__file__))
+sys.path.append(PRO_DIR)
+
+client_config_fp = open(os.path.join(PRO_DIR, "widget/config/client_config.json"))
+client_config = json.load(client_config_fp)
+client_config_fp.close()
+
+FRAME_URL = f"http://{client_config['server-ip']}:8000/frame"
 
 def rand_color():
     r = random.randint(0, 255)
@@ -46,11 +55,11 @@ def plot_dets(img, cubes, coms, srs):
             cubes_lines[int(cls)].append(xyxy)
             
     for [tx, ty, bx, by], name, idx in zip(coms["xyxy"], coms["name"], coms["cls"]):
-        img = cv2.rectangle(img, [int(tx*W), int(ty*H)], [int(bx*W), int(by*H)], coms_c[int(idx)], 6)
-        img = cv2.putText(img, f"{name}", [int(tx*W), int(ty*H)-20], cv2.FONT_HERSHEY_SIMPLEX, 2, coms_c[int(idx)], 6)
+        img = cv2.rectangle(img, [int(tx*W), int(ty*H)], [int(bx*W), int(by*H)], coms_c[int(idx)], 3)
+        img = cv2.putText(img, f"{name}", [int(tx*W), int(ty*H)-20], cv2.FONT_HERSHEY_SIMPLEX, 2, coms_c[int(idx)], 3)
     for [tx, ty, bx, by], idx in  zip(cubes["xyxy"], cubes["cls"]):
-        img = cv2.rectangle(img, [int(tx*W), int(ty*H)], [int(bx*W), int(by*H)], cubes_c[int(idx)], 6)
-        img = cv2.putText(img, f"{int(idx)}", [int(tx*W), int(ty*H)-20], cv2.FONT_HERSHEY_SIMPLEX, 2, cubes_c[int(idx)], 6)
+        img = cv2.rectangle(img, [int(tx*W), int(ty*H)], [int(bx*W), int(by*H)], cubes_c[int(idx)], 3)
+        img = cv2.putText(img, f"{int(idx)}", [int(tx*W), int(ty*H)-20], cv2.FONT_HERSHEY_SIMPLEX, 2, cubes_c[int(idx)], 3)
     
     ss, tr, tl, uc = srs["ss"], srs["tr"], srs["tl"], srs["uc"]
     img = cv2.line(img, [int(ss[0]*W), int(ss[1]*H)], [int(tr[0]*W), int(tr[1]*H)], (255, 225, 0), 6)
@@ -88,8 +97,16 @@ class DetThread(QThread):
     def post_det(self, frame: np.ndarray):
         fs = cv2.resize(frame, [1600, 928])
         h, w, c = fs.shape
-        b64 = base64.b64encode(fs.tobytes()).decode("utf-8")
-        res = self.session.post(FRAME_URL, json={"img": b64, "w": w, "h": h, "c": c}, headers={"Content-Type": "application/json"})
+        
+        ret, buffer = cv2.imencode('.jpg', fs, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
+        if not ret:
+            raise ValueError("Encode Err!")
+        
+        b64 = base64.b64encode(buffer).decode("utf-8")
+
+        print(len(b64)/1024)
+
+        res = self.session.post(FRAME_URL, json={"video_ip": client_config["video-ip"], "img": b64, "w": w, "h": h, "c": c}, headers={"Content-Type": "application/json"})
         res = res.json()
         return res["coms"], res["cubes"], res["srs"]             
 
@@ -108,7 +125,6 @@ class VideoCaptureThread(QThread):
         self.skip = 20
         self.idx = 0
         self.cuframe = None
-        self.session = requests.Session()
         self.new_coms = {"xyxy": [], "cls": [], "name": []}
         self.new_cubes = {"xyxy": [], "cls": []}
         self.srs = {"ss": [0.0, 0.0], "tr": [0.0, 0.0], "tl": [0.0, 0.0], "uc": [0.0, 0.0]}
@@ -154,14 +170,6 @@ class VideoCaptureThread(QThread):
     
     def pause_toggle(self):
         self.pause = not self.pause
-
-    def post_det(self, frame: np.ndarray):
-        fs = cv2.resize(frame, [1600, 928])
-        h, w, c = fs.shape
-        b64 = base64.b64encode(fs.tobytes()).decode("utf-8")
-        res = self.session.post(FRAME_URL, json={"img": b64, "w": w, "h": h, "c": c}, headers={"Content-Type": "application/json"})
-        res = res.json()
-        return res["coms"], res["cubes"]        
 
 
 class VideoPlayer(QWidget):

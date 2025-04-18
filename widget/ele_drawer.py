@@ -3,8 +3,6 @@
 :@author syhong
 '''
 
-
-
 import sys
 import os
 import pathlib
@@ -325,8 +323,8 @@ class EleDrawer(QtWidgets.QWidget):
         self.btn_line    = QtWidgets.QPushButton("导线")
         self.btn_line.clicked.connect(self.on_line_btn_clicked)
 
-        self.btn_delete  = QtWidgets.QPushButton("删除")
-        self.btn_delete.clicked.connect(self.on_delete_btn_clicked)
+        # self.btn_delete  = QtWidgets.QPushButton("删除")
+        # self.btn_delete.clicked.connect(self.on_delete_btn_clicked)
 
         self.btn_reset   = QtWidgets.QPushButton("重置")
         self.btn_reset.clicked.connect(self.on_reset_btn_clicked)
@@ -356,7 +354,7 @@ class EleDrawer(QtWidgets.QWidget):
         self.hbtns_layout.addWidget(self.btn_v)
         self.hbtns_layout.addWidget(self.btn_v150)
         self.hbtns_layout.addWidget(self.btn_line)
-        self.hbtns_layout.addWidget(self.btn_delete)
+        # self.hbtns_layout.addWidget(self.btn_delete)
         self.hbtns_layout.addWidget(self.btn_reset)
         self.hbtns_submit_layout.addStretch()
         self.hbtns_submit_layout.addWidget(self.btn_submit)
@@ -468,6 +466,7 @@ class EleDrawer(QtWidgets.QWidget):
         self.is_line = True
         self.btn_line.setEnabled(False)
         self.pressed_btn = self.btn_line   
+
         self.cur_target_item = QtWidgets.QGraphicsEllipseItem(-2, -2, 4, 4)
         self.line_path = QtWidgets.QGraphicsPathItem()
         pen = QtGui.QPen()
@@ -475,6 +474,7 @@ class EleDrawer(QtWidgets.QWidget):
         self.line_path.setPen(pen)
         self.cur_target_item.setZValue(-1)
         self.line_path.setZValue(-1)
+        
         self.scene.addItem(self.cur_target_item)
         self.scene.addItem(self.line_path)
 
@@ -552,6 +552,7 @@ class EleDrawer(QtWidgets.QWidget):
                 path = self.line_path.path()
                 path.lineTo(ix, iy)
                 self.line_path.setPath(path)
+                
                 to_item = self.view.itemAt(int(ix), int(iy))
                 if isinstance(to_item, EleBindPosItem):
                     from_id = -1
@@ -569,7 +570,7 @@ class EleDrawer(QtWidgets.QWidget):
                     )
                     self.line_next_id += 1
                     self.line_path = None
-                    self.reset_other_btn()                    
+                    self.on_line_btn_clicked()                
 
     def resizeEvent(self, a0):
         super().resizeEvent(a0)

@@ -1,0 +1,298 @@
+ 
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            body {
+                font-family: "SimSun", "Microsoft YaHei", sans-serif;
+                font-size: 14px;
+                line-height: 1.6;
+                color: #333;
+                background-color: #eee;
+                padding: 20px;
+            }
+
+            h1 {
+                text-align: center;
+                font-size: 24px;
+                font-weight: bold;
+            }
+
+            h2,
+            h3 {
+                color: #2c3e50;
+                margin-top: 40px;
+            }
+
+            p {
+                text-align: justify;
+                background: #f9f9f9;
+                padding: 10px;
+                border-radius: 5px;
+                border-left: 5px solid #3498db;
+            }
+
+            .section {
+                margin-bottom: 20px;
+                padding: 20px;
+                background: #ecf0f1;
+                border-radius: 5px;
+                box-shadow: #0000007e 4px 4px 10px 0px;
+                
+            }
+
+            .suggestion {
+                background: #eaf7ea;
+                padding: 10px;
+                border-left: 5px solid #27ae60;
+            }
+
+            .table {
+                display: flex;
+                justify-content: center;
+            }
+            
+            th {
+                background-color: #247db7;
+                padding: 20px;
+                color: #ffffff;
+            }
+
+            td {
+                background-color: #eeeeee;
+                padding: 10px;
+                border: #fff solid 1px;
+            }
+            
+            table th:first-child {
+                border-radius: 10px 0px 0px 0px;
+            }
+
+            table th:last-child {
+                border-radius: 0px 10px 0px 0px;
+            }
+
+            table tr:last-child td:first-child {
+                border-radius: 0px 0px 0px 10px;
+            }
+
+            table tr:last-child td:last-child {
+                border-radius: 0px 0px 10px 0px;
+            }
+
+            table {
+                background-color: #00000000;
+                box-shadow: #00000066 3px 3px 8px 0px;
+                overflow: hidden;
+                border-radius: 10px;
+            }
+            img {
+              object-fit: contain;     
+              width: 100%;         
+            }
+            .main {
+                margin: 0px auto;
+                width: 900px;
+                background-color: #fff;
+                padding: 100px 50px;
+                box-shadow: #00000066 3px 3px 6px 0px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="main">
+            <h1>实验总结</h1>
+        <h2>得分详情</h2>
+        <div class="table">
+            <table border="0" cellspacing="0" cellpadding="5">
+                <thead>
+                  <tr>
+                    <th>一级指标</th>
+                    <th>二级指标</th>
+                    <th>得分情况</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td rowspan="3">1 猜想并设计实验（15%）</td>
+                    <td>1.1 提出合理的猜想假设（5%）</td>
+                    <td>5.0 <a href="#his-evidence-stepA">详情</a></td>
+                  </tr>
+                  <tr>
+                    <td>1.2 设计实验电路图（5%）</td>
+                    <td>0.0 <a href="#his-analysis-stepC">详情</a></td>
+                  </tr>
+                  <tr>
+                    <td>1.3 设计实验表格（5%）</td>
+                    <td>0.0 <a href="#his-analysis-stepF">详情</a></td>
+                  </tr>
+                  <tr>
+                    <td rowspan="3">2 电路连接（15%）</td>
+                    <td>2.1 开关断开时连接电路（5%）</td>
+                    <td>0.0 <a href="#his-analysis-StepD">详情</a></td>
+                  </tr>
+                  <tr>
+                    <td>2.2 正确连接电流表、电压表、电阻和滑动变阻器（5%）</td>
+                    <td>0.0 <a href="#his-analysis-StepD">详情</a></td>
+                  </tr>
+                  <tr>
+                    <td>2.3 闭合电路前滑动变阻器滑片位于电阻最大位置（5%）</td>
+                    <td>0.0 <a href="#his-analysis-StepD">详情</a></td>
+                  </tr>
+                  <tr>
+                    <td rowspan="2">3 探究电流与电压的关系（15%）</td>
+                    <td>3.1 记录电流表示数（10%）</td>
+                    <td>2.0 <a href="#his-analysis-stepE">详情</a></td>
+                  </tr>
+                  <tr>
+                    <td>3.2 绘制U-I图像（5%）</td>
+                    <td>0.0 <a href="">详情</a></td>
+                  </tr>
+                  <tr>
+                    <td rowspan="2">4 探究电流与电阻的关系（15%）</td>
+                    <td>4.1 记录电流表示数（10%）</td>
+                    <td>10.0 <a href="#his-analysis-stepI">详情</a></td>
+                  </tr>
+                  <tr>
+                    <td>4.2 绘制R-I图像（5%）</td>
+                    <td>0.0 <a href="">详情</a></td>
+                  </tr>
+                  <tr>
+                    <td rowspan="2">5 仪器检查与整理（10%）</td>
+                    <td>5.1 检查实验仪器，对电流表、电压表进行调零 （5%）</td>
+                    <td>5.0 <a href="#his-zero-va">详情</a></td>
+                  </tr>
+                  <tr>
+                    <td>5.2 拆除电路，整理实验仪器（5%）</td>
+                    <td>5.0 <a href="#his-analysis-stepJ">详情</a></td>
+                  </tr>
+                  <tr>
+                    <td>6 总结归纳（20%）</td>
+                    <td>6.1 总结归纳电流与电压、电阻的关系（20%）</td>
+                    <td>20.0 <a href="#his-discussion-stepC">详情</a></td>
+                  </tr>
+                  <tr>
+                    <td>7 交流讨论（10%）</td>
+                    <td>7.1 讨论实验环节存在的问题及改进措施或其他合理问题（10%）</td>
+                    <td>10.0 <a href="#his-discussion-stepA">详情</a></td>
+                  </tr>
+                  <tr>
+                    <td>总分</td>
+                    <td colspan="2">57.0/100.0</td>
+                  </tr>
+                </tbody>
+            </table>
+        </div>
+        <h2>老师评价</h2>
+        <div class="section">
+            <p>根据学生的实验过程记录和评分细则，我们可以对学生的表现进行如下分析：</p>
+<ol>
+<li><p>猜想并设计实验（15%）：</p>
+<ul>
+<li>提出合理的猜想假设（5%）：学生在设计思考阶段多次回答问题时表现出了一定的理解能力，但在选择合适的实验设计上存在偏差，未能完全掌握控制变量法的应用，因此在这一部分得分较低。</li>
+<li>设计实验电路图（5%）：学生在实验验证阶段未能正确设计电路图，显示出对电路连接的理解不足，因此无法得分。</li>
+<li>设计实验表格（5%）：学生在设计表格时出现了错误，特别是在UI表格的数据填写上，导致这一部分也无法得分。</li>
+</ul>
+</li>
+<li><p>电路连接（15%）：</p>
+<ul>
+<li>开关断开时连接电路（5%）：学生在连接电路时未遵循正确的操作步骤，因此无法得分。</li>
+<li>正确连接电流表、电压表、电阻和滑动变阻器（5%）：由于电路连接错误，学生未能正确连接相关仪器，因此无法得分。</li>
+<li>闭合电路前滑动变阻器滑片位于电阻最大位置（5%）：学生在实验过程中未注意滑动变阻器的位置设置，因此无法得分。</li>
+</ul>
+</li>
+<li><p>探究关系（30%）：</p>
+<ul>
+<li>探究电流与电压的关系（15%）：学生在实验过程中未能正确记录电流和电压的数据，并且在绘制U-I图像时也出现问题，因此无法得分。</li>
+<li>探究电流与电阻的关系（15%）：学生在更换电阻以保持电压恒定时，未能有效控制变量，导致数据记录错误，因此无法得分。</li>
+</ul>
+</li>
+<li><p>仪器检查与整理（10%）：</p>
+<ul>
+<li>检查并调零电流表、电压表（5%）：学生在实验过程中未提到检查和调零仪器的操作，因此无法得分。</li>
+<li>拆除电路，整理实验仪器（5%）：学生在实验结束后完成了桌面整理，因此可以获得部分分数。</li>
+</ul>
+</li>
+<li><p>总结归纳（20%）：</p>
+<ul>
+<li>总结电流与电压、电阻的关系（20%）：学生在总结思考阶段能够正确总结电流与电压之间的关系，因此可以得分。</li>
+</ul>
+</li>
+<li><p>交流讨论（10%）：</p>
+<ul>
+<li>讨论实验问题、改进措施或提出其他合理问题（10%）：学生在实验过程中未提及对实验问题的讨论或改进措施，因此无法得分。</li>
+</ul>
+</li>
+</ol>
+<p>从科学核心素养的角度来看，学生在科学思维方面表现较好，能够理解基本的电学概念和原理，但在科学探究方面存在问题，特别是在实验设计和操作细节上不够细致。此外，学生在态度与责任方面表现较好，能够在实验结束后整理仪器，但缺乏对实验过程的全面反思和改进意识。</p>
+<p>建议学生在未来的实验中，加强对电路连接和仪器使用的训练，注重实验细节，提高数据记录的准确性，并在实验后进行更深入的反思和讨论，以提升科学探究能力。</p>
+
+        </div>
+        <h2>附录-实验历史记录</h2>
+        <div class="section">
+          <h3>阶段开始</h3>
+<h3 id="his-question-stepA">情景导入阶段-stepA<h3>
+<p>现在是情景导入阶段stepA<br/>问题为：当你使用手机充电器给手机充电时，充电速度会随着电流的变化而有所不同。除了电流的变化外，手机充电过程中还会发生哪些电学量的变化？<br/>A: 手机的电压和电阻也发生了变化<br/>B: 手机的电池容量发生了变化<br/>C: 手机的颜色变暗了<br/>D: 手机的外壳温度发生了变化<br/>学生第一次回答问题给出答案:A<br/></p>
+<p>回答正确</p>
+<h3 id="his-question-stepB">情景导入阶段-stepB<h3>
+<p>现在是情景导入阶段stepB<br/>问题为：当我们使用电热水壶烧水时，如果选择不同的加热档位，会如何影响水的加热速度？<br/>A: 电压不变，电流发生了变化<br/>B: 电压和电流也发生了变化<br/>C: 电流不变，电压发生了变化<br/>D: 水壶的形状和材质发生了变化<br/>学生第一次回答问题给出答案:B<br/></p>
+<p>回答正确</p>
+<h3 id="his-evidence-stepA">设计思考阶段-stepA<h3>
+<p>现在是设计思考阶段stepA<br/>问题为：同学们，我们知道电路中电流、电压和电阻三者之间有一定的关系。如果我们想探究电压对电流的影响，应该如何设计实验才能确保结果准确呢？<br/>A: 不需要控制变量，直接改变电压和电阻，观察电流的变化即可<br/>B: 应该先控制变量，需要先控制电流不变，探究电压和电阻之间的关系<br/>C: 可以同时改变电压和电阻，然后观察电流的变化<br/>D: 应该先控制变量，需要先控制电阻不变，探究电压和电流之间的关系<br/>学生第一次回答问题给出答案:B<br/>学生第二次回答问题给出答案:D<br/></p>
+<p>回答正确</p>
+<h3 id="his-evidence-stepB">设计思考阶段-stepB<h3>
+<p>现在是设计思考阶段stepB<br/>问题为：同学们，在设计实验电路时，我们能否使用灯泡作为电阻元件？为什么？<br/>A: 可以用灯泡，因为它的亮度变化可以直观地反映电流变化<br/>B: 可以用灯泡，因为它的电阻在整个实验过程中是固定的<br/>C: 可以用灯泡，只要控制好电流就能保证电阻不变<br/>D: 不能用灯泡，因为灯泡的电阻不是恒定的，需要使用定值电阻<br/>学生第一次回答问题给出答案:D<br/></p>
+<p>回答正确</p>
+<h3 id="his-evidence-stepC">设计思考阶段-stepC<h3>
+<p>现在是设计思考阶段stepC<br/>问题为：为了准确探究电流、电阻和电压之间的关系，我们需要收集多少组不同的电压和电流数据？应该如何操作才能获得这些数据？<br/>A: 需要五组以上，通过增加电源电压来改变电压值<br/>B: 只需要一组数据，通过公式计算即可得出结论<br/>C: 需要两组数据，通过改变电流源来改变电流<br/>D: 需要三组以上，可以通过调节滑动变阻器<br/>学生第一次回答问题给出答案:D<br/></p>
+<p>回答正确</p>
+<h3 id="his-evidence-stepD">设计思考阶段-stepD<h3>
+<p>现在是设计思考阶段stepD<br/>问题为：为了探究电流与电压的关系，我们需要选择合适的实验器材来构建电路。请问，下列哪组器材是进行该实验所必需的？<br/>A: 仅需电源、电流表和导线<br/>B: 滑动变阻器、电源、开关、电流表、导线和小灯泡<br/>C: 定值电阻、电源、开关和导线<br/>D: 需要定值电阻，滑动变阻器，电源，开关，电流表，电压表，导线<br/>学生第一次回答问题给出答案:D<br/></p>
+<p>回答正确</p>
+<h3 id="his-analysis-stepA">实验验证阶段-stepA<h3>
+<p>现在是实验验证阶段stepA<br/>问题为：在进行电路实验时，如何正确连接电压表和电流表以测量电路中的电压和电流？<br/>A: 电压表并联，电流表串联<br/>B: 电压表并联，电流表并联<br/>C: 电压表串联，电流表串联<br/>D: 电压表串联，电流表并联<br/>学生第一次回答问题给出答案:A<br/></p>
+<p>回答正确</p>
+<h3 id="his-analysis-stepB">实验验证阶段-stepB<h3>
+<p>现在是实验验证阶段stepB<br/>问题为：同学们，在这个实验中，为了安全有效地调节电路中的电流，滑动变阻器应该如何连接到电路中呢？<br/>A: 与定值电阻并联<br/>B: 与电流表并联<br/>C: 与定值电阻串联<br/>D: 与电压表串联<br/>学生第一次回答问题给出答案:C<br/></p>
+<p>回答正确</p>
+<h3 id="his-analysis-stepC">电路图设计</h3>
+<img src="http://192.168.1.18:8000/sum_page/imgs/77ec613e-bb86-4618-a307-f67ce1f6f3ac.jpg" alt="IMG"><p>电路图绘制错误</p>
+<h3 id="his-analysis-StepD">实物图连接</h3>
+<img src="http://192.168.1.18:8000/sum_page/imgs/ed44195f-2eb0-46e2-ad1d-e226fcb5c637.jpg" alt="IMG"><p>电路连接错误</p>
+<p>滑动变阻器位置错误</p>
+<p>开关状态错误</p>
+<h3 id="his-zero-va">调零</h3>
+<img src="http://192.168.1.18:8000/sum_page/imgs/ed44195f-2eb0-46e2-ad1d-e226fcb5c637.jpg" alt="IMG"><p>调零 正确</p>
+<h3 id="his-analysis-stepE">实验验证阶段-stepE<h3>
+<p>现在是实验验证阶段stepE<br/>问题为：为了确保实验结果的准确性和可比性，在调节电阻两端的电压时，下列哪一组电压值最为合适？<br/>A: 2V, 4V, 8V<br/>B: 0.5V, 1V, 1.5V<br/>C: 1V, 2V, 3V<br/>D: 0.2V, 0.4V, 2V<br/>学生第一次回答问题给出答案:C<br/></p>
+<p>回答正确</p>
+<h3 id="his-analysis-stepF">设计UI表格
+</h3>
+<p>表格设计错误</p>
+<h3 id="his-analysis-stepG">填写UI表格数据</h3>
+<p>表格记录 错误</p>
+<h3 id="his-analysis-stepH">设计IR表格
+</h3>
+<p>表格设计错误</p>
+<h3 id="his-analysis-stepI">填写IR表格数据</h3>
+<p>表格记录 正确</p>
+<h3 id="his-ird">绘制IR曲线图</h3>
+<img src="http://192.168.1.18:8000/sum_page/imgs/df1d8967-cf73-4168-bc5b-b1bfbc8839d4.jpg" alt="IMG"><p>曲线图 错误</p>
+<h3 id="his-analysis-stepJ">整理桌面</h3>
+<img src="http://192.168.1.18:8000/sum_page/imgs/ce7574ee-bfde-40cb-ab20-b06080b91e4e.jpg" alt="IMG"><p>桌面清理 正确</p>
+<h3 id="his-discussion-stepA">总结思考阶段-stepA<h3>
+<p>现在是总结思考阶段stepA<br/>问题为：在实验中，我们为什么要多次改变电压并测量电流值？<br/>A: 寻找普遍规律，避免特殊值的影响<br/>B: 观察电流随电压变化的趋势<br/>C: 验证电阻是否恒定<br/>D: 减小测量误差<br/>学生第一次回答问题给出答案:A<br/></p>
+<p>回答正确</p>
+<h3 id="his-discussion-stepB">总结思考阶段-stepB<h3>
+<p>现在是总结思考阶段stepB<br/>问题为：同学们，我们正在探究电流、电压和电阻之间的关系。为了确保实验结果的准确性，我们需要仔细操作。以下哪种操作可能会直接导致实验结论不准确？<br/>A: 实验过程中实验室灯光突然变暗<br/>B: 读数时未保持电压表指针稳定<br/>C: 记录数据时使用了不同颜色的笔<br/>D: 实验结束后未及时清理桌面<br/>学生第一次回答问题给出答案:B<br/></p>
+<p>回答正确</p>
+<h3 id="his-discussion-stepC">总结思考阶段-stepC<h3>
+<p>现在是总结思考阶段stepC<br/>问题为：根据我们对实验数据的分析，你能得出关于电流和电压之间关系的结论吗？<br/>A: 当导体电阻一定时，通过导体的电流与两端电压成正比<br/>B: 导体的电流与电压的关系是非线性的<br/>C: 电流与电压的关系只与电压有关，与电阻无关<br/>D: 导体的电流与电压成反比<br/>学生第一次回答问题给出答案:A<br/></p>
+<p>回答正确</p>
+
+        </div>
+        </div>
+    </body>
+    </html>
+
+    
